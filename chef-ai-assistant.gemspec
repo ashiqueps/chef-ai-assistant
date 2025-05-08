@@ -29,4 +29,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.10"
+
+  # Runtime dependencies
+  spec.add_dependency "ruby-openai", "~> 5.0"
+  spec.add_dependency "dotenv", "~> 2.8"
 end
