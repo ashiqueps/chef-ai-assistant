@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-# frozen_string_literal: true
 
 require 'bundler/setup'
 require 'dotenv/load'
@@ -37,10 +36,13 @@ end
 
 # Check command line arguments
 if ARGV.empty?
+  require 'tty-prompt'
   prompt = TTY::Prompt.new
-  prompt.warn('Missing arguments')
-  puts "Usage: #{$PROGRAM_NAME} ai [ask] [question]"
-  puts "Example: #{$PROGRAM_NAME} ai ask \"How do I write a Chef recipe?\""
+  
+  puts "Usage: #{$PROGRAM_NAME} COMMAND [arguments]"
+  puts "\n#{prompt.decorate('Available commands:', :bold)}"
+  puts "  #{prompt.decorate('ai', :blue).ljust(17)} Chef AI Assistant commands"
+  puts "\nRun '#{prompt.decorate("#{$PROGRAM_NAME} COMMAND --help", :cyan)}' for more information on a specific command."
   exit 1
 end
 
@@ -56,6 +58,10 @@ if command == 'ai'
 else
   prompt = TTY::Prompt.new
   prompt.error("Unknown command: #{command}")
-  puts 'Available commands: ai'
+  
+  puts "Usage: #{$PROGRAM_NAME} COMMAND [arguments]"
+  puts "\n#{prompt.decorate('Available commands:', :bold)}"
+  puts "  #{prompt.decorate('ai', :blue).ljust(17)} Chef AI Assistant commands"
+  puts "\nRun '#{prompt.decorate("#{$PROGRAM_NAME} COMMAND --help", :cyan)}' for more information on a specific command."
   exit 1
 end

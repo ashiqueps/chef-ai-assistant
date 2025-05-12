@@ -17,7 +17,7 @@ module ChefAiAssistant
       def setup_command
         @name = 'ai'
         @description = 'Chef AI Assistant commands'
-        @banner = 'Usage: PARENT_COMMAND ai SUBCOMMAND [options]'
+        @banner = 'Usage: chef ai SUBCOMMAND [options]'
         @options = {
           '--help' => 'Show this message',
           '--version' => 'Show Chef AI Assistant version'
@@ -58,7 +58,7 @@ module ChefAiAssistant
         @options.each do |option, desc|
           puts "  #{prompt.decorate(option, :blue).ljust(17)} #{desc}"
         end
-        puts "\nRun '#{prompt.decorate("PARENT_COMMAND ai SUBCOMMAND --help", :cyan)}' for more information on a specific subcommand."
+        puts "\nRun '#{prompt.decorate("chef ai SUBCOMMAND --help", :cyan)}' for more information on a specific subcommand."
       end
 
       def show_version
@@ -76,6 +76,7 @@ module ChefAiAssistant
 
         # Register built-in subcommands
         register_subcommand('ask', 'Ask the AI assistant a question', ChefAiAssistant::Commands::Ai::Ask)
+        register_subcommand('explain', 'Explain Chef-related files or directories', ChefAiAssistant::Commands::Ai::Explain)
       end
 
       def register_subcommand(name, _description, klass)

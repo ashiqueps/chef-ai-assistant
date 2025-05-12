@@ -11,7 +11,7 @@ module ChefAiAssistant
         def setup_command
           @name = 'ask'
           @description = 'Ask the AI assistant a question'
-          @banner = 'Usage: PARENT_COMMAND ai ask QUESTION [options]'
+          @banner = 'Usage: chef ai ask QUESTION [options]'
           @options = {
             '--help, -h' => 'Show this message',
             '--temperature TEMP' => 'Set the response creativity (0.0-2.0)',
