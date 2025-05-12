@@ -94,7 +94,7 @@ module ChefAiAssistant
           prompt.say("💬 #{prompt.decorate('Question:', :bold)}")
           prompt.say("  #{question}")
 
-          spinner = TTY::Spinner.new('[:spinner] Consulting AI assistant...', format: :dots)
+          spinner = TTY::Spinner.new("[:spinner] #{prompt.decorate('Consulting AI assistant...', :cyan)}", format: :dots)
           spinner.auto_spin
 
           # Send the request to the AI
@@ -113,7 +113,7 @@ module ChefAiAssistant
             puts "#{content}\n"
 
             if @verbose
-              puts prompt.decorate('Response Details:', %i[bold blue])
+              puts prompt.decorate('Response Details:', :bold)
               puts "- Model: #{response['model']}"
               puts "- Finish reason: #{response.dig('choices', 0, 'finish_reason')}"
               puts "- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}"

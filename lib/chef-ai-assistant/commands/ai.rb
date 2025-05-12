@@ -46,16 +46,19 @@ module ChefAiAssistant
       end
 
       def show_help
+        require 'tty-prompt'
+        prompt = TTY::Prompt.new
+
         puts @banner
-        puts "\nAvailable subcommands:"
+        puts "\n#{prompt.decorate('Available subcommands:', :bold)}"
         @subcommands.each do |name, cmd|
-          puts "  #{name.ljust(15)} #{cmd.description}"
+          puts "  #{prompt.decorate(name, :blue).ljust(17)} #{cmd.description}"
         end
-        puts "\nOptions:"
+        puts "\n#{prompt.decorate('Options:', :bold)}"
         @options.each do |option, desc|
-          puts "  #{option.ljust(15)} #{desc}"
+          puts "  #{prompt.decorate(option, :blue).ljust(17)} #{desc}"
         end
-        puts "\nRun 'PARENT_COMMAND ai SUBCOMMAND --help' for more information on a specific subcommand."
+        puts "\nRun '#{prompt.decorate("PARENT_COMMAND ai SUBCOMMAND --help", :cyan)}' for more information on a specific subcommand."
       end
 
       def show_version
