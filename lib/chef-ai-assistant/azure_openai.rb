@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'json'
 require 'net/http'
 require 'uri'
@@ -20,17 +22,17 @@ module ChefAiAssistant
     def chat(prompt, options = {})
       # If prompt is nil, assume options contains messages already
       default_options = if prompt.nil? && options[:messages]
-        {
-          temperature: 0.7,
-          max_tokens: 800
-        }
-      else
-        {
-          messages: [{ role: "user", content: prompt.to_s }],
-          temperature: 0.7,
-          max_tokens: 800
-        }
-      end
+                          {
+                            temperature: 0.7,
+                            max_tokens: 800
+                          }
+                        else
+                          {
+                            messages: [{ role: 'user', content: prompt.to_s }],
+                            temperature: 0.7,
+                            max_tokens: 800
+                          }
+                        end
 
       options = default_options.merge(options)
 
@@ -38,7 +40,7 @@ module ChefAiAssistant
       options.delete(:model) if options[:model]
 
       # Make the API call with the specified deployment
-      response = make_api_call("chat/completions", @config[:deployment_name], options)
+      response = make_api_call('chat/completions', @config[:deployment_name], options)
 
       # Check for errors in the response
       if response.is_a?(Hash) && response['error']
@@ -46,30 +48,28 @@ module ChefAiAssistant
         error_code = response['error']['code'] || 'unknown'
 
         puts "Azure OpenAI API Error (#{error_code}): #{error_msg}"
-        puts "Debug info:"
+        puts 'Debug info:'
         puts "  Endpoint: #{@config[:azure_endpoint]}"
         puts "  Deployment: #{@config[:deployment_name]}"
         puts "  API Version: #{@config[:api_version]}"
       end
 
-      return response
+      response
     end
 
     private
 
     def validate_config
-      required_keys = [:api_key, :api_version, :azure_endpoint]
+      required_keys = %i[api_key api_version azure_endpoint]
       missing_keys = required_keys.select { |key| @config[key].nil? || @config[key].empty? }
 
-      if missing_keys.any?
-        raise ConfigurationError, "Missing required configuration: #{missing_keys.join(', ')}"
-      end
+      raise ConfigurationError, "Missing required configuration: #{missing_keys.join(', ')}" if missing_keys.any?
 
       # Set a default deployment name if not provided
       if @config[:deployment_name].nil? || @config[:deployment_name].empty?
         puts "WARNING: No deployment_name specified. Using 'gpt-35-turbo' as default model."
         puts "This may not work if you haven't created this deployment in your Azure OpenAI resource."
-        @config[:deployment_name] = "gpt-35-turbo"
+        @config[:deployment_name] = 'gpt-35-turbo'
       end
 
       # Ensure the endpoint doesn't have a trailing slash
@@ -80,10 +80,10 @@ module ChefAiAssistant
     def make_api_call(endpoint, deployment_name = nil, body = nil, method = :post)
       # Build the URI based on whether we're accessing a deployment-specific endpoint
       uri = if deployment_name
-        URI.parse("#{@config[:azure_endpoint]}/openai/deployments/#{deployment_name}/#{endpoint}?api-version=#{@config[:api_version]}")
-      else
-        URI.parse("#{@config[:azure_endpoint]}/openai/#{endpoint}?api-version=#{@config[:api_version]}")
-      end
+              URI.parse("#{@config[:azure_endpoint]}/openai/deployments/#{deployment_name}/#{endpoint}?api-version=#{@config[:api_version]}")
+            else
+              URI.parse("#{@config[:azure_endpoint]}/openai/#{endpoint}?api-version=#{@config[:api_version]}")
+            end
 
       # Create HTTP client with proper timeouts
       http = Net::HTTP.new(uri.host, uri.port)
@@ -93,25 +93,23 @@ module ChefAiAssistant
 
       # Create request based on method
       request = case method
-               when :get
-                 Net::HTTP::Get.new(uri.request_uri)
-               when :post
-                 Net::HTTP::Post.new(uri.request_uri)
-               when :put
-                 Net::HTTP::Put.new(uri.request_uri)
-               when :delete
-                 Net::HTTP::Delete.new(uri.request_uri)
-               end
+                when :get
+                  Net::HTTP::Get.new(uri.request_uri)
+                when :post
+                  Net::HTTP::Post.new(uri.request_uri)
+                when :put
+                  Net::HTTP::Put.new(uri.request_uri)
+                when :delete
+                  Net::HTTP::Delete.new(uri.request_uri)
+                end
 
       # Set common headers
       request['api-key'] = @config[:api_key]
 
       # Set content type and body for POST and PUT requests
-      if method == :post || method == :put
-        if body
-          request['Content-Type'] = 'application/json'
-          request.body = body.to_json
-        end
+      if %i[post put].include?(method) && body
+        request['Content-Type'] = 'application/json'
+        request.body = body.to_json
       end
 
       response = http.request(request)
@@ -123,27 +121,27 @@ module ChefAiAssistant
           begin
             JSON.parse(response.body)
           rescue JSON::ParserError
-            { "error" => { "message" => "Invalid JSON in response body", "code" => "json_error" } }
+            { 'error' => { 'message' => 'Invalid JSON in response body', 'code' => 'json_error' } }
           end
         else
           # No body in response
-          { "result" => "success" }
+          { 'result' => 'success' }
         end
       else
         # Error response - try to parse error details if available
         begin
           if response.body && !response.body.empty?
-            error_body = JSON.parse(response.body)
-            error_body
+            JSON.parse(response.body)
+
           else
-            { "error" => { "message" => "HTTP #{response.code}: #{response.message}", "code" => response.code } }
+            { 'error' => { 'message' => "HTTP #{response.code}: #{response.message}", 'code' => response.code } }
           end
         rescue JSON::ParserError
-          { "error" => { "message" => "HTTP #{response.code}: #{response.message}", "code" => response.code } }
+          { 'error' => { 'message' => "HTTP #{response.code}: #{response.message}", 'code' => response.code } }
         end
       end
-    rescue => e
-      { "error" => { "message" => e.message, "code" => "request_error" } }
+    rescue StandardError => e
+      { 'error' => { 'message' => e.message, 'code' => 'request_error' } }
     end
   end
 

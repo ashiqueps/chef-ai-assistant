@@ -4,6 +4,8 @@ PATH
     chef-ai-assistant (0.1.0)
       dotenv (~> 2.8)
       ruby-openai (~> 5.0)
+      tty-prompt (~> 0.23)
+      tty-spinner (~> 0.9)
 
 GEM
   remote: https://rubygems.org/
@@ -24,6 +26,8 @@ GEM
     multipart-post (2.4.1)
     net-http (0.6.0)
       uri
+    pastel (0.8.0)
+      tty-color (~> 0.5)
     rake (13.2.1)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)
@@ -42,10 +46,24 @@ GEM
       event_stream_parser (>= 0.3.0, < 1.0.0)
       faraday (>= 1)
       faraday-multipart (>= 1)
+    tty-color (0.6.0)
+    tty-cursor (0.7.1)
+    tty-prompt (0.23.1)
+      pastel (~> 0.8)
+      tty-reader (~> 0.8)
+    tty-reader (0.9.0)
+      tty-cursor (~> 0.7)
+      tty-screen (~> 0.8)
+      wisper (~> 2.0)
+    tty-screen (0.8.2)
+    tty-spinner (0.9.3)
+      tty-cursor (~> 0.7)
     uri (1.0.3)
+    wisper (2.0.1)
 
 PLATFORMS
   x86_64-darwin-22
+  x86_64-darwin-23
 
 DEPENDENCIES
   bundler (~> 2.0)

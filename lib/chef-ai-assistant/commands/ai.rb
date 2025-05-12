@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'optparse'
 require_relative '../command'
 
@@ -13,22 +15,22 @@ module ChefAiAssistant
       end
 
       def setup_command
-        @name = "ai"
-        @description = "Chef AI Assistant commands"
-        @banner = "Usage: PARENT_COMMAND ai SUBCOMMAND [options]"
+        @name = 'ai'
+        @description = 'Chef AI Assistant commands'
+        @banner = 'Usage: PARENT_COMMAND ai SUBCOMMAND [options]'
         @options = {
-          "--help" => "Show this message",
-          "--version" => "Show Chef AI Assistant version"
+          '--help' => 'Show this message',
+          '--version' => 'Show Chef AI Assistant version'
         }
       end
 
       def run(args = [])
-        if args.empty? || args.first == "--help" || args.first == "-h"
+        if args.empty? || args.first == '--help' || args.first == '-h'
           show_help
           return 0
         end
 
-        if args.first == "--version" || args.first == "-v"
+        if ['--version', '-v'].include?(args.first)
           show_version
           return 0
         end
@@ -39,7 +41,7 @@ module ChefAiAssistant
         else
           puts "Unknown subcommand: #{subcommand}"
           show_help
-          return 1
+          1
         end
       end
 
@@ -62,18 +64,18 @@ module ChefAiAssistant
 
       def load_subcommands
         # Load all subcommand files in the commands/ai directory
-        dir = File.expand_path("../commands/ai", __dir__)
+        dir = File.expand_path('../commands/ai', __dir__)
         if File.directory?(dir)
-          Dir.glob(File.join(dir, "*.rb")).each do |file|
+          Dir.glob(File.join(dir, '*.rb')).sort.each do |file|
             require file
           end
         end
 
         # Register built-in subcommands
-        register_subcommand("ask", "Ask the AI assistant a question", ChefAiAssistant::Commands::Ai::Ask)
+        register_subcommand('ask', 'Ask the AI assistant a question', ChefAiAssistant::Commands::Ai::Ask)
       end
 
-      def register_subcommand(name, description, klass)
+      def register_subcommand(name, _description, klass)
         @subcommands[name] = klass.new
       end
 
@@ -81,8 +83,8 @@ module ChefAiAssistant
       def self.register_with(app_class)
         ChefAiAssistant::Command::Base.register_subcommand(
           app_class,
-          "ai",
-          "Chef AI Assistant commands",
+          'ai',
+          'Chef AI Assistant commands',
           self
         )
       end

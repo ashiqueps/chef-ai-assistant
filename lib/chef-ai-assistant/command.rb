@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ChefAiAssistant
   # Base module for all Chef AI Assistant commands
   module Command
@@ -27,11 +29,19 @@ module ChefAiAssistant
 
       # Help formatter for commands
       def help
+        require 'tty-prompt'
+        prompt = TTY::Prompt.new
+
         puts banner if banner
-        puts "Description: #{description}" if description
-        puts "Options:" unless options.empty?
+        puts prompt.decorate('Description:', :bold) + " #{description}" if description
+
+        return if options.empty?
+
+        puts prompt.decorate('Options:', :bold)
         options.each do |option, desc|
-          puts "  #{option.ljust(20)} #{desc}"
+          opt_parts = option.split(',').map(&:strip)
+          primary_opt = opt_parts.max_by(&:length)
+          puts "  #{prompt.decorate(primary_opt, :bright_blue).ljust(22)} #{desc}"
         end
       end
 
@@ -49,7 +59,7 @@ module ChefAiAssistant
             subcommands = Module.new
             app_class.const_set(:Subcommands, subcommands)
           end
-          
+
           # Create the command class in the parent's Subcommands namespace
           subcommand_class = Class.new(command_class)
           subcommands.const_set(command_name.capitalize, subcommand_class)
@@ -59,7 +69,7 @@ module ChefAiAssistant
 
     # Utility method to load all commands from a directory
     def self.load_commands(path)
-      Dir.glob(File.join(path, "*.rb")).each do |file|
+      Dir.glob(File.join(path, '*.rb')).sort.each do |file|
         require file
       end
     end
