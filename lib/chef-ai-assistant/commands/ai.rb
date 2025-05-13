@@ -79,6 +79,7 @@ module ChefAiAssistant
         register_subcommand('explain', 'Explain Chef-related files or directories', ChefAiAssistant::Commands::Ai::Explain)
         register_subcommand('command', 'Generate Chef commands from descriptions', ChefAiAssistant::Commands::Ai::CommandGenerator)
         register_subcommand('troubleshoot', 'Diagnose and troubleshoot Chef-related issues', ChefAiAssistant::Commands::Ai::Troubleshoot)
+        register_subcommand('generate', 'Generate Chef ecosystem files and directories', ChefAiAssistant::Commands::Ai::Generator)
       end
 
       def register_subcommand(name, _description, klass)
