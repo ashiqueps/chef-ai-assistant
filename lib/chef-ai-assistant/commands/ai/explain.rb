@@ -4,6 +4,8 @@ require 'optparse'
 require 'tty-spinner'
 require 'tty-prompt'
 require 'pathname'
+require 'rainbow'
+require 'rainbow'
 
 module ChefAiAssistant
   module Commands
@@ -99,10 +101,10 @@ module ChefAiAssistant
             query = "Explain this Chef directory structure: #{path_obj.basename}\nPath: #{path_obj}\n\nHierarchical Structure (indentation shows nesting):\n#{dir_structure}"
           end
 
-          prompt.say("💼 #{prompt.decorate('Analyzing:', :bold)}")
-          prompt.say("  #{path}")
+          prompt.say("💼 #{Rainbow('Analyzing:').bright.yellow.bold}")
+          prompt.say("  #{Rainbow(path).bright.white}")
 
-          spinner = TTY::Spinner.new("[:spinner] #{prompt.decorate('Consulting AI assistant...', :cyan)}", format: :dots)
+          spinner = TTY::Spinner.new("[:spinner] #{Rainbow('Consulting AI assistant...').bright.cyan}", format: :dots)
           spinner.auto_spin
 
           # Create messages array with system and user prompts
@@ -123,25 +125,31 @@ module ChefAiAssistant
           content = response.dig('choices', 0, 'message', 'content')
 
           if content
-            prompt.say("\n🤖 #{prompt.decorate('AI Explanation:', :bold)}")
-            puts "#{content}\n"
+            prompt.say("\n🤖 #{Rainbow('AI Explanation:').bright.blue.bold}")
+            
+            # Process content to add colors
+            colored_content = content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
+            colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
+            colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
+            
+            puts "#{colored_content}\n"
 
             if @verbose
-              puts prompt.decorate('Response Details:', :bold)
-              puts "- Model: #{response['model']}"
-              puts "- Finish reason: #{response.dig('choices', 0, 'finish_reason')}"
-              puts "- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}"
-              puts "- Completion tokens: #{response.dig('usage', 'completion_tokens')}"
-              puts "- Total tokens: #{response.dig('usage', 'total_tokens')}"
+              puts Rainbow('Response Details:').bright.blue.bold
+              puts Rainbow("- Model: #{response['model']}").cyan
+              puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
+              puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
+              puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
+              puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
             end
           else
-            prompt.error('Failed to get a response from the AI assistant')
+            puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
           end
         rescue StandardError => e
           spinner&.error('(✗)')
           prompt = TTY::Prompt.new
-          prompt.error(e.message.to_s)
-          puts e.backtrace if @verbose
+          puts Rainbow("Error: #{e.message}").red.bold
+          puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end
 
         private
@@ -162,8 +170,6 @@ module ChefAiAssistant
 
         def get_directory_structure(path_obj)
           # Build a hierarchical directory structure
-          # We'll use a hash to represent the tree structure
-          tree = {}
           max_entries = 100 # Increase max entries to capture more files
           
           # Get all files and directories, including hidden ones

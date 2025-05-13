@@ -3,6 +3,7 @@
 require 'optparse'
 require 'tty-spinner'
 require 'tty-prompt'
+require 'rainbow'
 
 module ChefAiAssistant
   module Commands
@@ -89,7 +90,7 @@ module ChefAiAssistant
           client = ChefAiAssistant.openai_client
           prompt = TTY::Prompt.new
           
-          prompt.say("🔍 #{prompt.decorate('Analyzing issue:', :bold)}")
+          prompt.say("🔍 #{Rainbow('Analyzing issue:').bright.yellow.bold}")
           
           # Prepare the content for the AI
           content = prepare_content(error_or_path, log_path, config_path, prompt)
@@ -98,7 +99,7 @@ module ChefAiAssistant
           return if content.empty?
 
           # Start the spinner
-          spinner = TTY::Spinner.new("[:spinner] #{prompt.decorate('Consulting AI assistant...', :cyan)}", format: :dots)
+          spinner = TTY::Spinner.new("[:spinner] #{Rainbow('Consulting AI assistant...').bright.cyan}", format: :dots)
           spinner.auto_spin
 
           # Create messages array with system and user prompts
@@ -123,21 +124,21 @@ module ChefAiAssistant
             display_troubleshooting_response(ai_response, prompt)
 
             if @verbose
-              puts "\n" + prompt.decorate('Response Details:', :bold)
-              puts "- Model: #{response['model']}"
-              puts "- Finish reason: #{response.dig('choices', 0, 'finish_reason')}"
-              puts "- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}"
-              puts "- Completion tokens: #{response.dig('usage', 'completion_tokens')}"
-              puts "- Total tokens: #{response.dig('usage', 'total_tokens')}"
+              puts "\n" + Rainbow('Response Details:').bright.blue.bold
+              puts Rainbow("- Model: #{response['model']}").cyan
+              puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
+              puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
+              puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
+              puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
             end
           else
-            prompt.error('Failed to get a response from the AI assistant')
+            puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
           end
         rescue StandardError => e
           spinner&.error('(✗)')
           prompt = TTY::Prompt.new
-          prompt.error(e.message.to_s)
-          puts e.backtrace if @verbose
+          puts Rainbow("Error: #{e.message}").red.bold
+          puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end
 
         private
@@ -153,13 +154,13 @@ module ChefAiAssistant
               content << file_content
               prompt.say("  #{error_or_path}")
             rescue => e
-              prompt.warn("  Could not read file #{error_or_path}: #{e.message}")
+              puts Rainbow("  Warning: Could not read file #{error_or_path}: #{e.message}").yellow
             end
           elsif error_or_path && !error_or_path.empty?
             # If not a file, treat as an error message
             content << "## Error message:\n"
             content << error_or_path
-            prompt.say("  \"#{error_or_path}\"")
+            prompt.say("  \"#{Rainbow(error_or_path).bright.white}\"")
           end
           
           # Add log file content if provided
@@ -176,15 +177,15 @@ module ChefAiAssistant
                 else
                   content << log_content
                 end
-                prompt.say("  Log file: #{log_path}")
+                prompt.say("  Log file: #{Rainbow(log_path).bright.white}")
               else
-                prompt.warn("  Log file is empty: #{log_path}")
+                puts Rainbow("  Warning: Log file is empty: #{log_path}").yellow
               end
             rescue => e
-              prompt.warn("  Could not read log file #{log_path}: #{e.message}")
+              puts Rainbow("  Warning: Could not read log file #{log_path}: #{e.message}").yellow
             end
           elsif log_path
-            prompt.warn("  Log file not found: #{log_path}")
+            puts Rainbow("  Warning: Log file not found: #{log_path}").yellow
           end
           
           # Add config file content if provided
@@ -193,16 +194,16 @@ module ChefAiAssistant
               config_content = File.read(config_path)
               content << "\n## Configuration file content:\n"
               content << config_content
-              prompt.say("  Config file: #{config_path}")
+              prompt.say("  Config file: #{Rainbow(config_path).bright.white}")
             rescue => e
-              prompt.warn("  Could not read config file #{config_path}: #{e.message}")
+              puts Rainbow("  Warning: Could not read config file #{config_path}: #{e.message}").yellow
             end
           elsif config_path
-            prompt.warn("  Config file not found: #{config_path}")
+            puts Rainbow("  Warning: Config file not found: #{config_path}").yellow
           end
           
           if content.empty?
-            prompt.error("No content provided for troubleshooting. Please provide an error message or file path.")
+            puts Rainbow("Error: No content provided for troubleshooting. Please provide an error message or file path.").red.bold
           end
           
           content.join("\n")
@@ -210,7 +211,7 @@ module ChefAiAssistant
 
         def display_troubleshooting_response(response, prompt)
           # Add a title for the diagnosis
-          prompt.say("\n🔧 #{prompt.decorate('Troubleshooting Diagnosis:', :bold)}")
+          prompt.say("\n🔧 #{Rainbow('Troubleshooting Diagnosis:').bright.blue.bold}")
           
           # Display the formatted response
           formatted_response = format_response(response)
@@ -218,8 +219,7 @@ module ChefAiAssistant
         end
         
         def format_response(response)
-          # Format the response with better separation of sections using TTY::Prompt instead of Rainbow
-          prompt = TTY::Prompt.new
+          # Format the response with better separation of sections using Rainbow for colorful output
           begin
             formatted_lines = []
             
@@ -229,50 +229,50 @@ module ChefAiAssistant
               
               # Handle markdown headings
               if line.start_with?('### ')
-                formatted_lines << "\n" + prompt.decorate(line, :magenta, :bold)
+                formatted_lines << "\n" + Rainbow(line).magenta.bold
               elsif line.start_with?('## ')
-                formatted_lines << "\n" + prompt.decorate(line, :magenta, :bold)
+                formatted_lines << "\n" + Rainbow(line).magenta.bold
               elsif line.start_with?('# ')
-                formatted_lines << "\n" + prompt.decorate(line, :magenta, :bold)
+                formatted_lines << "\n" + Rainbow(line).magenta.bold
               
               # Handle solution steps
               elsif line.match?(/^Step \d+:/)
-                formatted_lines << "\n" + prompt.decorate(line, :green, :bold)
+                formatted_lines << "\n" + Rainbow(line).green.bold
               
               # Handle numbered steps
               elsif line.match?(/^\d+\.\s+/)
-                formatted_lines << prompt.decorate(line, :green)
+                formatted_lines << Rainbow(line).green
               
               # Handle warnings
               elsif line.include?('Warning:')
-                formatted_lines << prompt.decorate(line, :yellow, :bold)
+                formatted_lines << Rainbow(line).yellow.bold
               
               # Handle errors
               elsif line.include?('Error:')
-                formatted_lines << prompt.decorate(line, :red, :bold)
+                formatted_lines << Rainbow(line).red.bold
               
               # Handle solution section
               elsif line == 'Solution:'
-                formatted_lines << "\n" + '-' * 40 + "\n" + prompt.decorate(line, :green, :bold)
+                formatted_lines << "\n" + Rainbow('-' * 40).blue + "\n" + Rainbow(line).green.bold
               
               # Handle summary section
               elsif line == 'Summary:'
-                formatted_lines << "\n" + '-' * 40 + "\n" + prompt.decorate(line, :green, :bold)
+                formatted_lines << "\n" + Rainbow('-' * 40).blue + "\n" + Rainbow(line).green.bold
               
               # Handle horizontal rules
               elsif line == '---'
-                formatted_lines << '-' * 40
+                formatted_lines << Rainbow('-' * 40).blue
               
               # Handle everything else
               else
                 # Look for bold text (**text**)
                 if line.include?('**')
-                  line = line.gsub(/\*\*(.*?)\*\*/) { |_| prompt.decorate($1, :bold) }
+                  line = line.gsub(/\*\*(.*?)\*\*/) { |_| Rainbow($1).magenta.bold }
                 end
                 
                 # Look for italic text (*text*)
                 if line.include?('*')
-                  line = line.gsub(/\*(.*?)\*/) { |_| prompt.decorate($1, :italic) }
+                  line = line.gsub(/\*(.*?)\*/) { |_| Rainbow($1).bright.white }
                 end
                 
                 formatted_lines << line
@@ -282,14 +282,14 @@ module ChefAiAssistant
             # Process code blocks after handling line-by-line formatting
             formatted_text = formatted_lines.join("\n")
             formatted_text = formatted_text.gsub(/```(?:bash|ruby|sh)?$(.*?)```/m) do |_|
-              "\n" + prompt.decorate($1, :cyan)
+              "\n" + Rainbow($1).green
             end
             
             return formatted_text
             
           rescue => e
             # If any error occurs in formatting, return the original response
-            puts "Warning: Error in response formatting: #{e.message}" if @verbose
+            puts Rainbow("Warning: Error in response formatting: #{e.message}").yellow.bold if @verbose
             return response
           end
         end

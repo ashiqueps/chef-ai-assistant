@@ -3,6 +3,7 @@ PATH
   specs:
     chef-ai-assistant (0.1.0)
       dotenv (~> 2.8)
+      rainbow (~> 3.0)
       ruby-openai (~> 5.0)
       tty-prompt (~> 0.23)
       tty-spinner (~> 0.9)
@@ -28,6 +29,7 @@ GEM
       uri
     pastel (0.8.0)
       tty-color (~> 0.5)
+    rainbow (3.1.1)
     rake (13.2.1)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)

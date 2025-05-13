@@ -3,6 +3,7 @@
 require 'optparse'
 require 'tty-spinner'
 require 'tty-prompt'
+require 'rainbow'
 
 module ChefAiAssistant
   module Commands
@@ -80,10 +81,10 @@ module ChefAiAssistant
           client = ChefAiAssistant.openai_client
           prompt = TTY::Prompt.new
           
-          prompt.say("🔍 #{prompt.decorate('Processing:', :bold)}")
-          prompt.say("  \"#{description}\"")
+          prompt.say("🔍 #{Rainbow('Processing:').bright.yellow.bold}")
+          prompt.say("  \"#{Rainbow(description).bright.white}\"")
 
-          spinner = TTY::Spinner.new("[:spinner] #{prompt.decorate('Generating command...', :cyan)}", format: :dots)
+          spinner = TTY::Spinner.new("[:spinner] #{Rainbow('Generating command...').bright.cyan}", format: :dots)
           spinner.auto_spin
 
           # Create messages array with system and user prompts
@@ -107,21 +108,21 @@ module ChefAiAssistant
             process_and_display_command(content, prompt)
 
             if @verbose
-              puts "\n" + prompt.decorate('Response Details:', :bold)
-              puts "- Model: #{response['model']}"
-              puts "- Finish reason: #{response.dig('choices', 0, 'finish_reason')}"
-              puts "- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}"
-              puts "- Completion tokens: #{response.dig('usage', 'completion_tokens')}"
-              puts "- Total tokens: #{response.dig('usage', 'total_tokens')}"
+              puts "\n" + Rainbow('Response Details:').bright.blue.bold
+              puts Rainbow("- Model: #{response['model']}").cyan
+              puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
+              puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
+              puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
+              puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
             end
           else
-            prompt.error('Failed to get a response from the AI assistant')
+            puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
           end
         rescue StandardError => e
           spinner&.error('(✗)')
           prompt = TTY::Prompt.new
-          prompt.error(e.message.to_s)
-          puts e.backtrace if @verbose
+          puts Rainbow("Error: #{e.message}").red.bold
+          puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end
 
         private
@@ -133,17 +134,29 @@ module ChefAiAssistant
           
           if commands.empty?
             # If no command was detected, show the full content
-            prompt.say("\n🤖 #{prompt.decorate('AI Response:', :bold)}")
-            puts content
+            prompt.say("\n🤖 #{Rainbow('AI Response:').bright.blue.bold}")
+            
+            # Process content to add colors
+            colored_content = content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
+            colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
+            colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
+            
+            puts colored_content
             return
           end
 
           # Display the explanation and commands
-          prompt.say("\n🤖 #{prompt.decorate('Chef Command Generator:', :bold)}")
+          prompt.say("\n🤖 #{Rainbow('Chef Command Generator:').bright.blue.bold}")
           
           # Display the content, removing any ```bash or ```shell markers for cleaner output
           clean_content = content.gsub(/```(?:bash|shell)\n?/, '').gsub(/```\n?/, '')
-          puts clean_content
+          
+          # Process content to add colors
+          colored_content = clean_content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
+          colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
+          colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
+          
+          puts colored_content
           
           # Offer to use one of the commands
           if commands.length == 1
@@ -151,9 +164,9 @@ module ChefAiAssistant
             selected_command = commands[0] if command_to_run
           elsif commands.length > 1
             # If multiple commands were found, let the user choose which one to use
-            prompt.say("\n#{prompt.decorate('Available commands:', :bold)}")
+            prompt.say("\n#{Rainbow('Available commands:').bright.yellow.bold}")
             commands.each_with_index do |cmd, idx|
-              prompt.say("#{idx + 1}. #{cmd}")
+              prompt.say("#{Rainbow(idx + 1).cyan}. #{Rainbow(cmd).bright.white}")
             end
             
             selection = prompt.ask("Enter number of command to use (or 0 to skip): ", convert: :int) do |q|
@@ -176,16 +189,16 @@ module ChefAiAssistant
             command = replace_placeholders(selected_command, prompt)
             
             # Display a clear box around the command for better visibility
-            line = "=" * [command.length + 8, 60].max
+            line = Rainbow("=" * [command.length + 8, 60].max).cyan
             prompt.say("\n#{line}")
-            prompt.say("##  #{prompt.decorate('GENERATED CHEF COMMAND', :green)}  ##")
+            prompt.say("##  #{Rainbow('GENERATED CHEF COMMAND').green.bold}  ##")
             prompt.say("#{line}")
             # Make the command stand out
-            prompt.say("\n    #{prompt.decorate(command, :bold)}\n")
+            prompt.say("\n    #{Rainbow(command).bright.white.bold}\n")
             prompt.say("#{line}")
             
             # Information about copying
-            prompt.say("\n#{prompt.decorate('✓ Just copy and paste this command into your terminal to use it.', :green)}")
+            prompt.say("\n#{Rainbow('✓ Just copy and paste this command into your terminal to use it.').green.bold}")
           end
         end
         
