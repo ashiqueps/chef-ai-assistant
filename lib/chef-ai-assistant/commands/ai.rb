@@ -80,6 +80,7 @@ module ChefAiAssistant
         register_subcommand('command', 'Generate Chef commands from descriptions', ChefAiAssistant::Commands::Ai::CommandGenerator)
         register_subcommand('troubleshoot', 'Diagnose and troubleshoot Chef-related issues', ChefAiAssistant::Commands::Ai::Troubleshoot)
         register_subcommand('generate', 'Generate Chef ecosystem files and directories', ChefAiAssistant::Commands::Ai::Generator)
+        register_subcommand('migrate', 'Assist with migrations between Chef versions', ChefAiAssistant::Commands::Ai::Migrator)
       end
 
       def register_subcommand(name, _description, klass)

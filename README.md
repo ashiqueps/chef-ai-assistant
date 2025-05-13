@@ -139,6 +139,27 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
   - `--temperature TEMP`: Set the response creativity (0.0-2.0)
   - `--verbose, -v`: Show detailed response information
 
+- **ai migrate**: Assist with migrations between different Chef versions
+  ```
+  chef ai migrate --from 14 --to 17 path/to/chef/file.rb
+  chef ai migrate --from 15 --to 18 path/to/chef/directory
+  ```
+
+  Features:
+  - Analyzes Chef code for compatibility issues between versions
+  - Provides detailed information about version changes
+  - Suggests fixes for deprecated features and syntax changes
+  - Can perform automatic migration of files
+  - Creates backups of original files or writes to a separate output directory
+  
+  Options:
+  - `--from VERSION`: Source Chef version (e.g., 14)
+  - `--to VERSION`: Target Chef version (e.g., 17)
+  - `--output PATH`: Specify output directory for migrated files
+  - `--scan-only`: Only scan for compatibility issues without making changes
+  - `--temperature TEMP`: Set the response creativity (0.0-2.0)
+  - `--verbose, -v`: Show detailed response information
+
 - **ai command**: Generate Chef commands from natural language descriptions
   ```
   chef ai command "bootstrap a windows node"
@@ -257,6 +278,62 @@ If the service should be running on this port, try restarting it:
   sudo systemctl restart chef-service-name
 
 Warning: Connection refused errors often indicate that a required service is not running or is misconfigured. Check the service's logs for additional clues.
+```
+
+### Using the Migrate Command
+
+```
+$ chef ai migrate --from 14 --to 17 cookbooks/my_cookbook/recipes
+
+Chef Version Migration Overview:
+
+Source: Chef 14 (Released: February 2018, EOL: April 2020)
+Target: Chef 17 (Released: March 2021, EOL: April 2023)
+
+Versions being skipped:
+  Chef 15 (May 2019)
+    • Chef Workstation replaces ChefDK
+    • Chef InSpec integration
+    • Target mode introduction
+    • Multiple new resources
+
+  Chef 16 (April 2020)
+    • Unified Chef Infra Client
+    • Improved resource subsystem
+    • Many resources moved to core
+    • Deprecation of legacy resources
+
+New in Chef 17:
+  • Ruby 3.0 support
+  • New unified mode default for resources
+  • Resource guard improvements
+  • Compliance phase improvements
+
+Do you want to proceed with the migration analysis? Yes
+🔍 Analyzing Chef code for migration:
+  Path: cookbooks/my_cookbook/recipes
+  Migration: Chef 14 → Chef 17
+  Mode: Full migration
+  Found: 3 Chef files
+
+Migration Analysis Results:
+Files analyzed: 3
+Files with issues: 2
+Files without issues: 1
+
+Files requiring migration:
+  • default.rb
+  • users.rb
+
+Would you like to perform the migration? Yes
+
+Creating backups in: cookbooks/my_cookbook/recipes/chef_migration_backup_20250513120113
+  ✓ Migrated default.rb (1024 bytes)
+  ✓ Migrated users.rb (895 bytes)
+
+Migration Summary:
+2 of 2 files migrated successfully
+Original files backed up in: cookbooks/my_cookbook/recipes/chef_migration_backup_20250513120113
 ```
 
 ## Development
