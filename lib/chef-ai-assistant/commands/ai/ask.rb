@@ -21,7 +21,8 @@ module ChefAiAssistant
           }
           @verbose = false
           @temperature = 0.7
-          @system_prompt = 'You are a helpful AI assistant for Chef. Help answer questions about Chef recipes, infrastructure, and general cooking questions. You are running in a command-line interface, so format your responses for optimal readability in a terminal. Use concise language, clear formatting with line breaks where appropriate, and avoid overly long paragraphs. For code examples, ensure they are properly formatted for CLI display.'
+          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
+          @system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a helpful AI assistant for Chef.'
         end
 
         def run(args = [])
@@ -64,6 +65,7 @@ module ChefAiAssistant
             end
 
             opts.on('--system PROMPT', String, 'Set a custom system prompt') do |prompt|
+              # If provided with a prompt, use it instead of the file
               @system_prompt = prompt
             end
 
@@ -111,12 +113,20 @@ module ChefAiAssistant
 
           if content
             prompt.say("\n🤖 #{Rainbow('AI Assistant:').bright.blue.bold}")
-            
+
             # Process content to add colors
-            colored_content = content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
-            colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
-            colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
-            
+            colored_content = # Code snippets in green
+              content.gsub(/`([^`]+)`/) do
+                Rainbow(::Regexp.last_match(1)).green
+              end
+            colored_content = # Headers in yellow
+              colored_content.gsub(/^#+ (.+)$/) do
+                Rainbow(::Regexp.last_match(0)).yellow.bold
+              end
+            colored_content = # Bold text in magenta
+              colored_content.gsub(/\*\*([^*]+)\*\*/) do
+                Rainbow(::Regexp.last_match(1)).magenta.bold
+              end
             puts "#{colored_content}\n"
 
             if @verbose
@@ -132,7 +142,7 @@ module ChefAiAssistant
           end
         rescue StandardError => e
           spinner&.error('(✗)')
-          prompt = TTY::Prompt.new
+          TTY::Prompt.new
           puts Rainbow("Error: #{e.message}").red.bold
           puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end

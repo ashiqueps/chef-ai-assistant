@@ -94,8 +94,8 @@ module ChefAiAssistant
               'Performance improvements'
             ]
           }
-        }
-        
+        }.freeze
+
         def setup_command
           @name = 'migrate'
           @description = 'Assist with migrations between Chef versions'
@@ -129,19 +129,13 @@ module ChefAiAssistant
           remaining_args = parse_options(args)
 
           # The remaining arg is the path to analyze
-          if remaining_args.any?
-            @path = File.expand_path(remaining_args.first)
-          end
+          @path = File.expand_path(remaining_args.first) if remaining_args.any?
 
           # Validate required options
           prompt = TTY::Prompt.new
-          if @source_version.nil?
-            @source_version = prompt.ask("Please specify the source Chef version:", default: "14")
-          end
-          
-          if @target_version.nil?
-            @target_version = prompt.ask("Please specify the target Chef version:", default: "17")
-          end
+          @source_version = prompt.ask('Please specify the source Chef version:', default: '14') if @source_version.nil?
+
+          @target_version = prompt.ask('Please specify the target Chef version:', default: '17') if @target_version.nil?
 
           # Show major changes between versions
           show_version_changes(prompt, @source_version, @target_version)
@@ -157,7 +151,7 @@ module ChefAiAssistant
             # Process the migration
             process_migration
           else
-            prompt.warn("Migration cancelled by user")
+            prompt.warn('Migration cancelled by user')
             return 0
           end
           0
@@ -212,7 +206,7 @@ module ChefAiAssistant
         def process_migration
           client = ChefAiAssistant.openai_client
           prompt = TTY::Prompt.new
-          
+
           prompt.say("🔍 #{Rainbow('Analyzing Chef code for migration:').bright.yellow.bold}")
           prompt.say("  #{Rainbow('Path:').bright.yellow} #{Rainbow(@path).bright.white}")
           prompt.say("  #{Rainbow('Migration:').bright.yellow} #{Rainbow("Chef #{@source_version} → Chef #{@target_version}").bright.white}")
@@ -221,7 +215,7 @@ module ChefAiAssistant
           # Collect Chef files for analysis
           files = collect_chef_files(@path)
           if files.empty?
-            prompt.warn("No Chef files found in the specified path")
+            prompt.warn('No Chef files found in the specified path')
             return
           end
 
@@ -230,21 +224,23 @@ module ChefAiAssistant
           # Analyze each file
           migration_results = {}
           files.each do |file|
-            spinner = TTY::Spinner.new("[:spinner] #{Rainbow("Analyzing #{File.basename(file)}...").bright.cyan}", format: :dots)
+            spinner = TTY::Spinner.new("[:spinner] #{Rainbow("Analyzing #{File.basename(file)}...").bright.cyan}",
+                                       format: :dots)
             spinner.auto_spin
 
             file_content = File.read(file)
-            
+
             # Send the file content to the AI for analysis
             messages = [
               { role: 'system', content: @system_prompt },
-              { role: 'user', content: "Please analyze the following Chef file for migration from Chef #{@source_version} to Chef #{@target_version}. #{@scan_only ? 'Only identify issues.' : 'Provide updated code to fix issues.'}\n\n```ruby\n#{file_content}\n```" }
+              { role: 'user',
+                content: "Please analyze the following Chef file for migration from Chef #{@source_version} to Chef #{@target_version}. #{@scan_only ? 'Only identify issues.' : 'Provide updated code to fix issues.'}\n\n```ruby\n#{file_content}\n```" }
             ]
 
             response = client.chat(nil, {
-              messages: messages,
-              temperature: @temperature
-            })
+                                     messages: messages,
+                                     temperature: @temperature
+                                   })
 
             spinner.stop
 
@@ -270,70 +266,75 @@ module ChefAiAssistant
 
         def show_version_changes(prompt, source_version, target_version)
           prompt.say("\n#{Rainbow('Chef Version Migration Overview:').bright.blue.bold}")
-          
+
           # Clean version numbers
           source = source_version.to_s.split('.').first
           target = target_version.to_s.split('.').first
-          
+
           # Skip if versions aren't in our data
           unless MAJOR_CHEF_CHANGES.key?(source) && MAJOR_CHEF_CHANGES.key?(target)
             prompt.warn("Detailed version information not available for Chef #{source} to Chef #{target} migration")
             return
           end
-          
+
           # Show source version info
-          prompt.say("\n#{Rainbow('Source:').bright.yellow} #{Rainbow("Chef #{source}").bright.white} " +
+          prompt.say("\n#{Rainbow('Source:').bright.yellow} #{Rainbow("Chef #{source}").bright.white} " \
             "(Released: #{MAJOR_CHEF_CHANGES[source][:released]}, EOL: #{MAJOR_CHEF_CHANGES[source][:eol]})")
-          
+
           # Show target version info
-          prompt.say("#{Rainbow('Target:').bright.yellow} #{Rainbow("Chef #{target}").bright.white} " +
+          prompt.say("#{Rainbow('Target:').bright.yellow} #{Rainbow("Chef #{target}").bright.white} " \
             "(Released: #{MAJOR_CHEF_CHANGES[target][:released]}, EOL: #{MAJOR_CHEF_CHANGES[target][:eol]})")
-          
+
           # If it's only one version difference, show direct changes
           if target.to_i - source.to_i == 1
             prompt.say("\n#{Rainbow("Major changes in Chef #{target}:").bright.yellow}")
-            MAJOR_CHEF_CHANGES[target][:highlights].each do |change|
-              prompt.say("  #{Rainbow('•').yellow} #{change}")
-            end
           else
             # Show intermediate versions when skipping multiple versions
             prompt.say("\n#{Rainbow('Versions being skipped:').bright.yellow}")
-            
+
             ((source.to_i + 1)...target.to_i).each do |v|
               v_str = v.to_s
-              if MAJOR_CHEF_CHANGES.key?(v_str)
-                prompt.say("  #{Rainbow("Chef #{v_str}").bright.white} (#{MAJOR_CHEF_CHANGES[v_str][:released]})")
-                MAJOR_CHEF_CHANGES[v_str][:highlights].each do |change|
-                  prompt.say("    #{Rainbow('•').yellow} #{change}")
-                end
-                puts
+              next unless MAJOR_CHEF_CHANGES.key?(v_str)
+
+              prompt.say("  #{Rainbow("Chef #{v_str}").bright.white} (#{MAJOR_CHEF_CHANGES[v_str][:released]})")
+              MAJOR_CHEF_CHANGES[v_str][:highlights].each do |change|
+                prompt.say("    #{Rainbow('•').yellow} #{change}")
               end
+              puts
             end
-            
+
             # Show target version highlights
-            prompt.say("#{Rainbow("New in Chef #{target}:").bright.yellow}")
-            MAJOR_CHEF_CHANGES[target][:highlights].each do |change|
-              prompt.say("  #{Rainbow('•').yellow} #{change}")
-            end
+            prompt.say(Rainbow("New in Chef #{target}:").bright.yellow.to_s)
           end
-          
+          MAJOR_CHEF_CHANGES[target][:highlights].each do |change|
+            prompt.say("  #{Rainbow('•').yellow} #{change}")
+          end
+
           # Warning if source version is EOL
-          source_date = Date.parse(MAJOR_CHEF_CHANGES[source][:eol]) rescue nil
+          source_date = begin
+            Date.parse(MAJOR_CHEF_CHANGES[source][:eol])
+          rescue StandardError
+            nil
+          end
           if source_date && source_date < Date.today
             prompt.say("\n#{Rainbow('⚠️').red} #{Rainbow("Chef #{source} reached end-of-life on #{MAJOR_CHEF_CHANGES[source][:eol]}").red}")
             prompt.say("  #{Rainbow('This version no longer receives updates or security fixes.').red}")
           end
-          
+
           # Warning if target version is EOL or approaching EOL
-          target_date = Date.parse(MAJOR_CHEF_CHANGES[target][:eol]) rescue nil
-          if target_date
-            if target_date < Date.today
-              prompt.say("\n#{Rainbow('⚠️').red} #{Rainbow("Chef #{target} reached end-of-life on #{MAJOR_CHEF_CHANGES[target][:eol]}").red}")
-              prompt.say("  #{Rainbow('Consider migrating to a newer supported version instead.').red}")
-            elsif (target_date - Date.today).to_i < 180 # Less than 6 months to EOL
-              prompt.say("\n#{Rainbow('⚠').yellow} #{Rainbow("Chef #{target} will reach end-of-life on #{MAJOR_CHEF_CHANGES[target][:eol]}").yellow}")
-              prompt.say("  #{Rainbow('Consider planning for another migration in the future.').yellow}")
-            end
+          target_date = begin
+            Date.parse(MAJOR_CHEF_CHANGES[target][:eol])
+          rescue StandardError
+            nil
+          end
+          return unless target_date
+
+          if target_date < Date.today
+            prompt.say("\n#{Rainbow('⚠️').red} #{Rainbow("Chef #{target} reached end-of-life on #{MAJOR_CHEF_CHANGES[target][:eol]}").red}")
+            prompt.say("  #{Rainbow('Consider migrating to a newer supported version instead.').red}")
+          elsif (target_date - Date.today).to_i < 180 # Less than 6 months to EOL
+            prompt.say("\n#{Rainbow('⚠').yellow} #{Rainbow("Chef #{target} will reach end-of-life on #{MAJOR_CHEF_CHANGES[target][:eol]}").yellow}")
+            prompt.say("  #{Rainbow('Consider planning for another migration in the future.').yellow}")
           end
         end
 
@@ -341,7 +342,7 @@ module ChefAiAssistant
 
         def collect_chef_files(path)
           files = []
-          
+
           if File.directory?(path)
             # Common Chef file patterns
             patterns = [
@@ -360,7 +361,7 @@ module ChefAiAssistant
               '**/client.rb',               # Chef client config
               '**/solo.rb'                  # Chef solo config
             ]
-            
+
             # Collect files matching patterns
             patterns.each do |pattern|
               Dir.glob(File.join(path, pattern)).each do |file|
@@ -370,50 +371,50 @@ module ChefAiAssistant
           elsif File.file?(path) && path.end_with?('.rb', 'Berksfile', 'Cheffile')
             files << path
           end
-          
+
           files.uniq
         end
 
         def display_migration_results(results, prompt)
           prompt.say("\n#{Rainbow('Migration Analysis Results:').bright.blue.bold}")
-          
+
           if results.empty?
-            prompt.say("#{Rainbow('No files were analyzed').yellow}")
+            prompt.say(Rainbow('No files were analyzed').yellow.to_s)
             return
           end
-          
+
           # Categorize files
           files_with_issues = results.select { |_, data| data[:has_issues] }.keys
           files_without_issues = results.keys - files_with_issues
-          
+
           # Summary
           prompt.say("#{Rainbow('Files analyzed:').bright.yellow} #{results.size}")
           prompt.say("#{Rainbow('Files with issues:').bright.yellow} #{files_with_issues.size}")
           prompt.say("#{Rainbow('Files without issues:').bright.yellow} #{files_without_issues.size}")
-          
+
           if files_with_issues.empty?
-            prompt.say("\n#{Rainbow('✓').green} #{Rainbow('All files appear compatible with Chef ' + @target_version).green.bold}")
+            prompt.say("\n#{Rainbow('✓').green} #{Rainbow("All files appear compatible with Chef #{@target_version}").green.bold}")
             return
           end
-          
+
           # Process files with issues
           prompt.say("\n#{Rainbow('Files requiring migration:').bright.yellow.bold}")
-          
+
           files_with_issues.each do |file|
-            relative_path = file.sub(Dir.pwd + '/', '')
+            relative_path = file.sub("#{Dir.pwd}/", '')
             prompt.say("  #{Rainbow('•').yellow} #{Rainbow(relative_path).bright.white}")
           end
-          
+
           return if @scan_only
-          
+
           # Perform migrations if not in scan-only mode
           if prompt.yes?("\n#{Rainbow('Would you like to perform the migration?').bright.yellow}")
             perform_migration(results, files_with_issues, prompt)
           else
             prompt.say("\n#{Rainbow('Migration cancelled').yellow}")
-            
+
             # Offer to show detailed analysis
-            if prompt.yes?("#{Rainbow('Would you like to see the detailed analysis?').bright.yellow}")
+            if prompt.yes?(Rainbow('Would you like to see the detailed analysis?').bright.yellow.to_s)
               display_detailed_analysis(results, prompt)
             end
           end
@@ -423,45 +424,46 @@ module ChefAiAssistant
           # Create output directory if specified
           output_dir = @output_dir
           create_backups = output_dir.nil?
-          
+
           if create_backups
             # Use backup directory in the same location as the input
-            if File.directory?(@path)
-              backup_dir = File.join(@path, "chef_migration_backup_#{Time.now.strftime('%Y%m%d%H%M%S')}")
-            else
-              backup_dir = File.join(File.dirname(@path), "chef_migration_backup_#{Time.now.strftime('%Y%m%d%H%M%S')}")
-            end
+            backup_dir = if File.directory?(@path)
+                           File.join(@path, "chef_migration_backup_#{Time.now.strftime('%Y%m%d%H%M%S')}")
+                         else
+                           File.join(File.dirname(@path), "chef_migration_backup_#{Time.now.strftime('%Y%m%d%H%M%S')}")
+                         end
             FileUtils.mkdir_p(backup_dir)
             prompt.say("\n#{Rainbow('Creating backups in:').bright.yellow} #{Rainbow(backup_dir).bright.white}")
           else
             FileUtils.mkdir_p(output_dir)
             prompt.say("\n#{Rainbow('Generating migrated files in:').bright.yellow} #{Rainbow(output_dir).bright.white}")
           end
-          
+
           # Process each file
           success_count = 0
-          
+
           files_with_issues.each do |file|
             # Extract updated content from analysis
             analysis = results[file][:analysis]
             original_content = results[file][:original]
             # Use the enhanced extraction method for better pattern matching
-            updated_content = ChefAiAssistant::Utils::MigrationUtils.extract_updated_code(analysis, original_content, @verbose)
-            
+            updated_content = ChefAiAssistant::Utils::MigrationUtils.extract_updated_code(analysis, original_content,
+                                                                                          @verbose)
+
             if updated_content.nil?
               prompt.error("Failed to extract updated code for #{File.basename(file)}")
-              
+
               # Offer to save the analysis text
               if prompt.yes?("Would you like to see the analysis for #{File.basename(file)}?")
                 puts
                 puts analysis
-                
+
                 # Offer to save analysis to a file
                 if prompt.yes?("\nWould you like to save this analysis to a file?")
                   analysis_file = "#{File.basename(file, '.*')}_migration_analysis.txt"
                   output_path = create_backups ? backup_dir : output_dir
                   analysis_path = File.join(output_path, analysis_file)
-                  
+
                   begin
                     File.write(analysis_path, analysis)
                     prompt.say("  #{Rainbow('✓').green} Saved analysis to #{Rainbow(analysis_path).bright.white}")
@@ -470,66 +472,64 @@ module ChefAiAssistant
                   end
                 end
               end
-              
+
               next
             end
-            
+
             # Determine target path
             if create_backups
               # Create backup of original
               backup_path = File.join(backup_dir, File.basename(file))
               FileUtils.cp(file, backup_path)
               target_path = file
-            else
+            elsif File.directory?(@path)
               # Create in output directory, preserving relative path if input is directory
-              if File.directory?(@path)
-                rel_path = file.sub(/^#{Regexp.escape(@path)}\//, '')
-                target_path = File.join(output_dir, rel_path)
-                FileUtils.mkdir_p(File.dirname(target_path))
-              else
-                target_path = File.join(output_dir, File.basename(file))
-              end
+              rel_path = file.sub(%r{^#{Regexp.escape(@path)}/}, '')
+              target_path = File.join(output_dir, rel_path)
+              FileUtils.mkdir_p(File.dirname(target_path))
+            else
+              target_path = File.join(output_dir, File.basename(file))
             end
-            
+
             # Debug and validation check
-          if @verbose
-            prompt.say("  #{Rainbow('Debug:').yellow} Content length: #{updated_content.length} bytes")
-            prompt.say("  #{Rainbow('Debug:').yellow} Content starts with: #{updated_content[0..50]}...")
-            prompt.say("  #{Rainbow('Debug:').yellow} Content ends with: #{updated_content[-50..-1]}...")
-            prompt.say("  #{Rainbow('Debug:').yellow} Original length: #{original_content.length} bytes")
-            prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'ISSUE:': #{analysis.include?('ISSUE:')}")
-            prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'WARNING:': #{analysis.include?('WARNING:')}")
-            prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'DEPRECATED:': #{analysis.include?('DEPRECATED:')}")
-            prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'compatible': #{analysis =~ /compatible/i ? 'Yes' : 'No'}")
-          end
-          
-          # Write the updated file - but only if its size is reasonable
-          begin
-            # Safety check to ensure we're not writing truncated content
-            original_length = original_content.length
-            updated_length = updated_content.length
-            
-            if updated_length < original_length * 0.8 && original_length > 500
-              # Content is suspiciously shorter than original
-              prompt.warn("Generated content (#{updated_length} bytes) is significantly shorter than original (#{original_length} bytes)")
-              if prompt.yes?("Would you like to use the original file instead?")
-                updated_content = original_content
-                prompt.say("  #{Rainbow('!').yellow} Using original content for #{Rainbow(File.basename(file)).bright.white}")
-              end
+            if @verbose
+              prompt.say("  #{Rainbow('Debug:').yellow} Content length: #{updated_content.length} bytes")
+              prompt.say("  #{Rainbow('Debug:').yellow} Content starts with: #{updated_content[0..50]}...")
+              prompt.say("  #{Rainbow('Debug:').yellow} Content ends with: #{updated_content[-50..-1]}...")
+              prompt.say("  #{Rainbow('Debug:').yellow} Original length: #{original_content.length} bytes")
+              prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'ISSUE:': #{analysis.include?('ISSUE:')}")
+              prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'WARNING:': #{analysis.include?('WARNING:')}")
+              prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'DEPRECATED:': #{analysis.include?('DEPRECATED:')}")
+              prompt.say("  #{Rainbow('Debug:').yellow} Analysis contains 'compatible': #{analysis =~ /compatible/i ? 'Yes' : 'No'}")
             end
-            
-            File.write(target_path, updated_content)
-            success_count += 1
-            prompt.say("  #{Rainbow('✓').green} Migrated #{Rainbow(File.basename(file)).bright.white} (#{updated_content.length} bytes)")
-          rescue StandardError => e
-            prompt.error("Failed to write #{File.basename(file)}: #{e.message}")
+
+            # Write the updated file - but only if its size is reasonable
+            begin
+              # Safety check to ensure we're not writing truncated content
+              original_length = original_content.length
+              updated_length = updated_content.length
+
+              if updated_length < original_length * 0.8 && original_length > 500
+                # Content is suspiciously shorter than original
+                prompt.warn("Generated content (#{updated_length} bytes) is significantly shorter than original (#{original_length} bytes)")
+                if prompt.yes?('Would you like to use the original file instead?')
+                  updated_content = original_content
+                  prompt.say("  #{Rainbow('!').yellow} Using original content for #{Rainbow(File.basename(file)).bright.white}")
+                end
+              end
+
+              File.write(target_path, updated_content)
+              success_count += 1
+              prompt.say("  #{Rainbow('✓').green} Migrated #{Rainbow(File.basename(file)).bright.white} (#{updated_content.length} bytes)")
+            rescue StandardError => e
+              prompt.error("Failed to write #{File.basename(file)}: #{e.message}")
+            end
           end
-          end
-          
+
           # Summary
           prompt.say("\n#{Rainbow('Migration Summary:').bright.blue.bold}")
-          prompt.say("#{Rainbow("#{success_count} of #{files_with_issues.size} files migrated successfully").green}")
-          
+          prompt.say(Rainbow("#{success_count} of #{files_with_issues.size} files migrated successfully").green.to_s)
+
           if create_backups
             prompt.say("#{Rainbow('Original files backed up in:').bright.yellow} #{Rainbow(backup_dir).bright.white}")
           else
@@ -542,22 +542,20 @@ module ChefAiAssistant
 
         def display_detailed_analysis(results, prompt)
           files_with_issues = results.select { |_, data| data[:has_issues] }.keys
-          
+
           files_with_issues.each do |file|
             prompt.say("\n#{Rainbow('Analysis for:').bright.blue.bold} #{Rainbow(file).bright.white}")
-            
+
             # Format and display the analysis
             analysis = results[file][:analysis]
             colored_analysis = analysis.gsub(/ISSUE:|WARNING:|DEPRECATED:/) do |match|
               Rainbow(match).red.bold
             end
-            
+
             puts colored_analysis
-            
+
             # Pause between files if there are multiple
-            if file != files_with_issues.last
-              prompt.keypress("\nPress any key to see the next file analysis...")
-            end
+            prompt.keypress("\nPress any key to see the next file analysis...") if file != files_with_issues.last
           end
         end
       end

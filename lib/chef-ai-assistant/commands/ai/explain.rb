@@ -5,7 +5,6 @@ require 'tty-spinner'
 require 'tty-prompt'
 require 'pathname'
 require 'rainbow'
-require 'rainbow'
 
 module ChefAiAssistant
   module Commands
@@ -83,7 +82,7 @@ module ChefAiAssistant
           client = ChefAiAssistant.openai_client
           prompt = TTY::Prompt.new
           path_obj = Pathname.new(path)
-          
+
           # Check if path exists
           unless path_obj.exist?
             prompt.error("Path does not exist: #{path}")
@@ -115,9 +114,9 @@ module ChefAiAssistant
 
           # Send the request to the AI
           response = client.chat(nil, {
-            messages: messages,
-            temperature: @temperature
-          })
+                                   messages: messages,
+                                   temperature: @temperature
+                                 })
 
           spinner.stop
 
@@ -126,12 +125,20 @@ module ChefAiAssistant
 
           if content
             prompt.say("\n🤖 #{Rainbow('AI Explanation:').bright.blue.bold}")
-            
+
             # Process content to add colors
-            colored_content = content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
-            colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
-            colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
-            
+            colored_content = # Code snippets in green
+              content.gsub(/`([^`]+)`/) do
+                Rainbow(::Regexp.last_match(1)).green
+              end
+            colored_content = # Headers in yellow
+              colored_content.gsub(/^#+ (.+)$/) do
+                Rainbow(::Regexp.last_match(0)).yellow.bold
+              end
+            colored_content = # Bold text in magenta
+              colored_content.gsub(/\*\*([^*]+)\*\*/) do
+                Rainbow(::Regexp.last_match(1)).magenta.bold
+              end
             puts "#{colored_content}\n"
 
             if @verbose
@@ -147,7 +154,7 @@ module ChefAiAssistant
           end
         rescue StandardError => e
           spinner&.error('(✗)')
-          prompt = TTY::Prompt.new
+          TTY::Prompt.new
           puts Rainbow("Error: #{e.message}").red.bold
           puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end
@@ -162,64 +169,64 @@ module ChefAiAssistant
             content += "\n...(content truncated for length)..." if File.size(path_obj.to_s) > 4000
             content
           else
-            "(Binary file)"
+            '(Binary file)'
           end
-        rescue => e
+        rescue StandardError => e
           "(Error reading file: #{e.message})"
         end
 
         def get_directory_structure(path_obj)
           # Build a hierarchical directory structure
           max_entries = 100 # Increase max entries to capture more files
-          
+
           # Get all files and directories, including hidden ones
           all_entries = Dir.glob("#{path_obj}/**/*", File::FNM_DOTMATCH)
           # Skip . and .. entries
-          all_entries.reject! { |e| File.basename(e) == '.' || File.basename(e) == '..' }
+          all_entries.reject! { |e| ['.', '..'].include?(File.basename(e)) }
           # Limit to max_entries
           entries = all_entries[0...max_entries]
-          
+
           # Sort entries: directories first, then files, alphabetically
           entries.sort_by! do |entry|
             [File.directory?(entry) ? 0 : 1, entry.downcase]
           end
-          
+
           # Build a string representation of the directory structure with proper indentation
           structure = []
           entries.each do |entry|
             # Get the relative path from the base directory
             relative_path = Pathname.new(entry).relative_path_from(path_obj).to_s
             components = relative_path.split(File::SEPARATOR)
-            
+
             # Calculate indentation based on depth
-            indent = "  " * (components.length - 1)
-            
+            indent = '  ' * (components.length - 1)
+
             # Add entry to the tree with proper formatting
             is_dir = File.directory?(entry)
             basename = File.basename(entry)
             entry_str = "#{indent}#{basename}#{is_dir ? '/' : ''}"
             structure << entry_str
           end
-          
+
           # Add truncation notice if there are more entries
           if all_entries.count > max_entries
             structure << "\n...(directory listing truncated, showing #{max_entries} of #{all_entries.count} entries)..."
           end
-          
+
           structure.join("\n")
         end
 
         def is_text_file?(path_obj)
           # Simple check to see if a file is likely a text file
           return false unless path_obj.file?
-          
+
           begin
             # Read the first 1024 bytes and check if it's valid UTF-8
             # We don't actually need to use the sample, just check if it's valid UTF-8
             File.read(path_obj.to_s, 1024, encoding: 'utf-8')
-            return true
-          rescue
-            return false
+            true
+          rescue StandardError
+            false
           end
         end
       end

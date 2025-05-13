@@ -58,7 +58,8 @@ module ChefAiAssistant
         @options.each do |option, desc|
           puts "  #{prompt.decorate(option, :blue).ljust(17)} #{desc}"
         end
-        puts "\nRun '#{prompt.decorate("chef ai SUBCOMMAND --help", :cyan)}' for more information on a specific subcommand."
+        puts "\nRun '#{prompt.decorate('chef ai SUBCOMMAND --help',
+                                       :cyan)}' for more information on a specific subcommand."
       end
 
       def show_version
@@ -76,11 +77,16 @@ module ChefAiAssistant
 
         # Register built-in subcommands
         register_subcommand('ask', 'Ask the AI assistant a question', ChefAiAssistant::Commands::Ai::Ask)
-        register_subcommand('explain', 'Explain Chef-related files or directories', ChefAiAssistant::Commands::Ai::Explain)
-        register_subcommand('command', 'Generate Chef commands from descriptions', ChefAiAssistant::Commands::Ai::CommandGenerator)
-        register_subcommand('troubleshoot', 'Diagnose and troubleshoot Chef-related issues', ChefAiAssistant::Commands::Ai::Troubleshoot)
-        register_subcommand('generate', 'Generate Chef ecosystem files and directories', ChefAiAssistant::Commands::Ai::Generator)
-        register_subcommand('migrate', 'Assist with migrations between Chef versions', ChefAiAssistant::Commands::Ai::Migrator)
+        register_subcommand('explain', 'Explain Chef-related files or directories',
+                            ChefAiAssistant::Commands::Ai::Explain)
+        register_subcommand('command', 'Generate Chef commands from descriptions',
+                            ChefAiAssistant::Commands::Ai::CommandGenerator)
+        register_subcommand('troubleshoot', 'Diagnose and troubleshoot Chef-related issues',
+                            ChefAiAssistant::Commands::Ai::Troubleshoot)
+        register_subcommand('generate', 'Generate Chef ecosystem files and directories',
+                            ChefAiAssistant::Commands::Ai::Generator)
+        register_subcommand('migrate', 'Assist with migrations between Chef versions',
+                            ChefAiAssistant::Commands::Ai::Migrator)
       end
 
       def register_subcommand(name, _description, klass)

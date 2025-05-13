@@ -80,7 +80,7 @@ module ChefAiAssistant
         def process_command_description(description)
           client = ChefAiAssistant.openai_client
           prompt = TTY::Prompt.new
-          
+
           prompt.say("🔍 #{Rainbow('Processing:').bright.yellow.bold}")
           prompt.say("  \"#{Rainbow(description).bright.white}\"")
 
@@ -95,9 +95,9 @@ module ChefAiAssistant
 
           # Send the request to the AI
           response = client.chat(nil, {
-            messages: messages,
-            temperature: @temperature
-          })
+                                   messages: messages,
+                                   temperature: @temperature
+                                 })
 
           spinner.stop
 
@@ -108,7 +108,7 @@ module ChefAiAssistant
             process_and_display_command(content, prompt)
 
             if @verbose
-              puts "\n" + Rainbow('Response Details:').bright.blue.bold
+              puts "\n#{Rainbow('Response Details:').bright.blue.bold}"
               puts Rainbow("- Model: #{response['model']}").cyan
               puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
               puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
@@ -120,7 +120,7 @@ module ChefAiAssistant
           end
         rescue StandardError => e
           spinner&.error('(✗)')
-          prompt = TTY::Prompt.new
+          TTY::Prompt.new
           puts Rainbow("Error: #{e.message}").red.bold
           puts Rainbow(e.backtrace.join("\n")).red if @verbose
         end
@@ -131,36 +131,52 @@ module ChefAiAssistant
           # Extract command(s) from the content
           # This simple regex looks for code blocks or commands that look like they start with chef, knife, etc.
           commands = extract_commands(content)
-          
+
           if commands.empty?
             # If no command was detected, show the full content
             prompt.say("\n🤖 #{Rainbow('AI Response:').bright.blue.bold}")
-            
+
             # Process content to add colors
-            colored_content = content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
-            colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
-            colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
-            
+            colored_content = # Code snippets in green
+              content.gsub(/`([^`]+)`/) do
+                Rainbow(::Regexp.last_match(1)).green
+              end
+            colored_content = # Headers in yellow
+              colored_content.gsub(/^#+ (.+)$/) do
+                Rainbow(::Regexp.last_match(0)).yellow.bold
+              end
+            colored_content = # Bold text in magenta
+              colored_content.gsub(/\*\*([^*]+)\*\*/) do
+                Rainbow(::Regexp.last_match(1)).magenta.bold
+              end
             puts colored_content
             return
           end
 
           # Display the explanation and commands
           prompt.say("\n🤖 #{Rainbow('Chef Command Generator:').bright.blue.bold}")
-          
+
           # Display the content, removing any ```bash or ```shell markers for cleaner output
           clean_content = content.gsub(/```(?:bash|shell)\n?/, '').gsub(/```\n?/, '')
-          
+
           # Process content to add colors
-          colored_content = clean_content.gsub(/`([^`]+)`/) { Rainbow($1).green }  # Code snippets in green
-          colored_content = colored_content.gsub(/^#+ (.+)$/) { Rainbow($&).yellow.bold } # Headers in yellow
-          colored_content = colored_content.gsub(/\*\*([^\*]+)\*\*/) { Rainbow($1).magenta.bold } # Bold text in magenta
-          
+          colored_content = # Code snippets in green
+            clean_content.gsub(/`([^`]+)`/) do
+              Rainbow(::Regexp.last_match(1)).green
+            end
+          colored_content = # Headers in yellow
+            colored_content.gsub(/^#+ (.+)$/) do
+              Rainbow(::Regexp.last_match(0)).yellow.bold
+            end
+          colored_content = # Bold text in magenta
+            colored_content.gsub(/\*\*([^*]+)\*\*/) do
+              Rainbow(::Regexp.last_match(1)).magenta.bold
+            end
           puts colored_content
-          
+
           # Offer to use one of the commands
           if commands.length == 1
-            command_to_run = prompt.yes?("Would you like to use this command?")
+            command_to_run = prompt.yes?('Would you like to use this command?')
             selected_command = commands[0] if command_to_run
           elsif commands.length > 1
             # If multiple commands were found, let the user choose which one to use
@@ -168,13 +184,13 @@ module ChefAiAssistant
             commands.each_with_index do |cmd, idx|
               prompt.say("#{Rainbow(idx + 1).cyan}. #{Rainbow(cmd).bright.white}")
             end
-            
-            selection = prompt.ask("Enter number of command to use (or 0 to skip): ", convert: :int) do |q|
+
+            selection = prompt.ask('Enter number of command to use (or 0 to skip): ', convert: :int) do |q|
               q.in "0-#{commands.length}"
               q.default 0
             end
-            
-            if selection > 0
+
+            if selection.positive?
               command_to_run = true
               selected_command = commands[selection - 1]
             else
@@ -183,42 +199,40 @@ module ChefAiAssistant
           else
             command_to_run = false
           end
-          
-          if command_to_run && selected_command
-            # Prompt for any missing values using <PLACEHOLDER> format
-            command = replace_placeholders(selected_command, prompt)
-            
-            # Display a clear box around the command for better visibility
-            line = Rainbow("=" * [command.length + 8, 60].max).cyan
-            prompt.say("\n#{line}")
-            prompt.say("##  #{Rainbow('GENERATED CHEF COMMAND').green.bold}  ##")
-            prompt.say("#{line}")
-            # Make the command stand out
-            prompt.say("\n    #{Rainbow(command).bright.white.bold}\n")
-            prompt.say("#{line}")
-            
-            # Information about copying
-            prompt.say("\n#{Rainbow('✓ Just copy and paste this command into your terminal to use it.').green.bold}")
-          end
+
+          return unless command_to_run && selected_command
+
+          # Prompt for any missing values using <PLACEHOLDER> format
+          command = replace_placeholders(selected_command, prompt)
+
+          # Display a clear box around the command for better visibility
+          line = Rainbow('=' * [command.length + 8, 60].max).cyan
+          prompt.say("\n#{line}")
+          prompt.say("##  #{Rainbow('GENERATED CHEF COMMAND').green.bold}  ##")
+          prompt.say(line.to_s)
+          # Make the command stand out
+          prompt.say("\n    #{Rainbow(command).bright.white.bold}\n")
+          prompt.say(line.to_s)
+
+          # Information about copying
+          prompt.say("\n#{Rainbow('✓ Just copy and paste this command into your terminal to use it.').green.bold}")
         end
-        
+
         def extract_commands(content)
           commands = []
-          
+
           # First try to extract commands from code blocks
           content.scan(/```(?:bash|shell)?\n(.*?)```/m) { |match| commands.concat(extract_command_lines(match[0])) }
-          
+
           # If no commands found in code blocks, try to find command lines in the text
-          if commands.empty?
-            commands.concat(extract_command_lines(content))
-          end
-          
+          commands.concat(extract_command_lines(content)) if commands.empty?
+
           commands.uniq
         end
-        
+
         def extract_command_lines(text)
           command_lines = []
-          
+
           # Look for lines that appear to be Chef commands
           chef_command_patterns = [
             /^\s*(chef\s+\w+.*)/,
@@ -231,31 +245,31 @@ module ChefAiAssistant
             /^\s*(ohai\s+.*)/,
             /^\s*(\$\s*(?:chef|knife|inspec|berkshelf|berks|kitchen|foodcritic|ohai)\s+\w+.*)/
           ]
-          
+
           text.each_line do |line|
             chef_command_patterns.each do |pattern|
-              if line =~ pattern
-                # Remove $ prompt if present
-                command = $1.gsub(/^\$\s*/, '')
-                command_lines << command.strip
-              end
+              next unless line =~ pattern
+
+              # Remove $ prompt if present
+              command = ::Regexp.last_match(1).gsub(/^\$\s*/, '')
+              command_lines << command.strip
             end
           end
-          
+
           command_lines
         end
-        
+
         def replace_placeholders(command, prompt)
           # Look for placeholders like <NODE_NAME> or <PATH>
           placeholders = command.scan(/<([A-Z_]+)>/)
-          
+
           # Replace each placeholder with user input
           placeholders.each do |placeholder|
             name = placeholder[0]
             value = prompt.ask("Enter value for #{name}:")
             command.gsub!(/<#{name}>/, value) if value
           end
-          
+
           command
         end
       end
