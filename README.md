@@ -344,7 +344,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/username/chef-ai-assistant.
+Bug reports and pull requests are welcome on GitHub at https://github.com/ashiqueps/chef-ai-assistant.
 
 ## License
 
