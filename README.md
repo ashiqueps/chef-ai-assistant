@@ -155,6 +155,26 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
   Options:
   - `--temperature TEMP`: Set the response creativity (0.0-2.0)
   - `--verbose, -v`: Show detailed response information
+
+- **ai troubleshoot**: Diagnose and troubleshoot Chef-related issues
+  ```
+  chef ai troubleshoot "Error message or description of the problem"
+  chef ai troubleshoot path/to/error/log.log
+  chef ai troubleshoot --logs path/to/chef/logs.log --config path/to/client.rb
+  ```
+
+  Features:
+  - Analyzes error messages to provide solutions
+  - Can examine log files for context and patterns
+  - Processes configuration files to identify issues
+  - Provides step-by-step solutions with clear formatting
+  - Highlights warnings, errors, and solutions for easy scanning
+  
+  Options:
+  - `--logs PATH`: Provide a path to Chef logs for analysis
+  - `--config PATH`: Provide a path to Chef config file for analysis
+  - `--temperature TEMP`: Set the response creativity (0.0-2.0)
+  - `--verbose, -v`: Show detailed response information
   
 ## Examples
 
@@ -202,6 +222,41 @@ $ chef ai explain cookbooks/apache
 
 🤖 AI Explanation:
 This directory contains a Chef cookbook named "apache" that's responsible for installing and configuring the Apache web server...
+```
+
+### Using the Troubleshoot Feature
+
+```
+$ chef ai troubleshoot "ERROR: Connection refused connecting to localhost:8889"
+
+🔍 Analyzing issue:
+  "ERROR: Connection refused connecting to localhost:8889"
+[...] Consulting AI assistant...
+
+🔧 Troubleshooting Diagnosis:
+
+This error occurs when Chef client is unable to connect to a service on port 8889 on localhost.
+
+----------------------------------------
+Solution:
+
+Step 1: Verify if the service is running
+Run the following command to check if anything is listening on port 8889:
+  sudo lsof -i :8889
+
+Step 2: Check firewall settings
+Ensure that local connections on port 8889 are allowed:
+  sudo iptables -L | grep 8889
+
+Step 3: Examine Chef configuration
+Make sure your Chef configuration is pointing to the correct endpoint and port.
+Check your client.rb or knife.rb for any incorrect settings.
+
+Step 4: Restart the service
+If the service should be running on this port, try restarting it:
+  sudo systemctl restart chef-service-name
+
+Warning: Connection refused errors often indicate that a required service is not running or is misconfigured. Check the service's logs for additional clues.
 ```
 
 ## Development
