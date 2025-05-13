@@ -21,8 +21,16 @@ module ChefAiAssistant
           }
           @verbose = false
           @temperature = 0.7
+
+          # Read the system prompt from the file
           system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          @system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a helpful AI assistant for Chef.'
+          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
+
+          # Add ask-specific instructions
+          @system_prompt = base_system_prompt + "\n\n" \
+                           'Your current task is to answer questions related to Chef ecosystem components, tools, ' \
+                           'best practices, and general usage. Provide clear, concise, and accurate information ' \
+                           'that helps the user understand Chef concepts and solve problems.'
         end
 
         def run(args = [])

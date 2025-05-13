@@ -20,7 +20,17 @@ module ChefAiAssistant
           }
           @verbose = false
           @temperature = 0.3 # Lower temperature for more deterministic command generation
-          @system_prompt = 'You are a Chef command-line expert. Your task is to translate natural language descriptions into proper Chef command-line commands (like knife, chef, inspec, etc.). Be precise and provide only the relevant commands. Include brief explanations of what each command does and any important parameters. Format your responses for optimal readability in a terminal. You may ask clarifying questions if essential information is missing.'
+
+          # Read the system prompt from the file
+          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
+          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
+
+          # Add command-specific instructions
+          @system_prompt = base_system_prompt + "\n\n" \
+                           'Your current task is to translate natural language descriptions into proper Chef command-line commands ' \
+                           '(like knife, chef, inspec, etc.). Be precise and provide only the relevant commands. ' \
+                           'Include brief explanations of what each command does and any important parameters. ' \
+                           'You may ask clarifying questions if essential information is missing.'
         end
 
         def run(args = [])

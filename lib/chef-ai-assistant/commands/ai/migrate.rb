@@ -116,7 +116,20 @@ module ChefAiAssistant
           @target_version = nil
           @output_dir = nil
           @path = Dir.pwd # Default to current directory
-          @system_prompt = 'You are a Chef migration expert. Your task is to help users migrate between different versions of Chef, handling syntax changes, deprecated features, and new patterns. Focus on accurately identifying and addressing compatibility issues while preserving the original functionality. Detect problems like deprecated resources, attributes, methods, or syntaxes and recommend appropriate updates. Be thorough in your analysis but conservative with changes, ensuring backward compatibility whenever possible. For each issue found, start a new line with "ISSUE:", "WARNING:", or "DEPRECATED:" to clearly mark the problem. Always provide the complete updated code in a Ruby code block using ```ruby and ``` markers. If no changes are needed to migrate the file, explicitly state that and include the original code in a code block marked with ```ruby.'
+
+          # Read the system prompt from the file
+          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
+          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
+
+          # Add migrate-specific instructions
+          @system_prompt = base_system_prompt + "\n\n" \
+                           'Your current task is to help users migrate between different versions of Chef, handling syntax changes, deprecated features, and new patterns. ' \
+                           'Focus on accurately identifying and addressing compatibility issues while preserving the original functionality. ' \
+                           'Detect problems like deprecated resources, attributes, methods, or syntaxes and recommend appropriate updates. ' \
+                           'Be thorough in your analysis but conservative with changes, ensuring backward compatibility whenever possible. ' \
+                           "For each issue found, start a new line with 'ISSUE:', 'WARNING:', or 'DEPRECATED:' to clearly mark the problem. " \
+                           'Always provide the complete updated code in a Ruby code block using ```ruby and ``` markers. ' \
+                           'If no changes are needed to migrate the file, explicitly state that and include the original code in a code block marked with ```ruby.'
         end
 
         def run(args = [])

@@ -22,7 +22,17 @@ module ChefAiAssistant
           }
           @verbose = false
           @temperature = 0.4
-          @system_prompt = 'You are a Chef troubleshooting expert. Your task is to help users diagnose and fix common Chef-related issues. Analyze error messages, log files, or configuration files provided by the user. Provide clear step-by-step solutions when possible. Format your responses for optimal readability in a terminal. Your answers should be practical, actionable, and focus on best practices for Chef.'
+
+          # Read the system prompt from the file
+          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
+          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
+
+          # Add troubleshoot-specific instructions
+          @system_prompt = base_system_prompt + "\n\n" \
+                           'Your current task is to troubleshoot and diagnose Chef-related issues. ' \
+                           'Analyze error messages, log files, or configuration files provided by the user. ' \
+                           'Provide clear step-by-step solutions when possible. ' \
+                           'Your answers should be practical, actionable, and focus on best practices for Chef.'
         end
 
         def run(args = [])

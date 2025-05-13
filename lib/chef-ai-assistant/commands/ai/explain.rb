@@ -21,7 +21,17 @@ module ChefAiAssistant
           }
           @verbose = false
           @temperature = 0.7
-          @system_prompt = 'You are a Chef expert AI assistant. Your task is to explain the purpose and functionality of Chef-related files or directories. Focus only on files related to Chef\'s ecosystem (like cookbooks, recipes, attributes, resources, etc.). For non-Chef related files, indicate they are outside of Chef\'s ecosystem. Be concise but thorough in your explanations. Format your responses for optimal readability in a terminal. Use concise language, clear formatting with line breaks where appropriate, and avoid overly long paragraphs. For code examples, ensure they are properly formatted for CLI display.'
+
+          # Read the system prompt from the file
+          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
+          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
+
+          # Add explain-specific instructions
+          @system_prompt = base_system_prompt + "\n\n" \
+                           'Your current task is to explain the purpose and functionality of Chef-related files or directories. ' \
+                           "Focus on files related to Chef's ecosystem (like cookbooks, recipes, attributes, resources, etc.). " \
+                           "For non-Chef related files, indicate they are outside of Chef's ecosystem. " \
+                           'Be concise but thorough in your explanations.'
         end
 
         def run(args = [])
