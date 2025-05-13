@@ -77,6 +77,7 @@ module ChefAiAssistant
         # Register built-in subcommands
         register_subcommand('ask', 'Ask the AI assistant a question', ChefAiAssistant::Commands::Ai::Ask)
         register_subcommand('explain', 'Explain Chef-related files or directories', ChefAiAssistant::Commands::Ai::Explain)
+        register_subcommand('command', 'Generate Chef commands from descriptions', ChefAiAssistant::Commands::Ai::CommandGenerator)
       end
 
       def register_subcommand(name, _description, klass)

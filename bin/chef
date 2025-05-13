@@ -54,6 +54,7 @@ if command == 'ai'
 
   # Run the AI command with the remaining arguments
   exit_code = ai_command.run(ARGV[1..-1])
+  
   exit(exit_code || 0)
 else
   prompt = TTY::Prompt.new

@@ -1,6 +1,6 @@
 # Chef AI Assistant
 
-Chef AI Assistant is a Ruby gem that provides AI assistant capabilities for Chef.
+Chef AI Assistant is a Ruby gem that provides AI-powered capabilities for Chef. It helps with explaining Chef code, generating Chef commands, and answering questions about Chef.
 
 ## Installation
 
@@ -71,9 +71,26 @@ response = client.chat(
 
 ### Command Line Interface
 
-Chef AI Assistant can be integrated with other Chef gems (like chef-cli, knife, test-kitchen) to provide AI assistant capabilities via command line.
+#### Using the Standalone `chef` Command
 
-#### Integrating with Another Chef Gem
+Chef AI Assistant comes with a standalone `chef` command that provides easy access to all AI assistant features:
+
+```bash
+# Basic usage
+chef ai ask "How do I write a recipe for Apache installation?"
+chef ai explain path/to/cookbook
+chef ai command "list all nodes in production environment"
+
+# Show help
+chef --help
+chef ai --help
+```
+
+For detailed usage of each subcommand, see the "Available Commands" section below.
+
+#### Integrating with Other Chef Gems
+
+Chef AI Assistant can also be integrated with other Chef gems (like chef-cli, knife, test-kitchen) to provide AI assistant capabilities via command line.
 
 To add the `ai` command to your Chef gem:
 
@@ -99,18 +116,93 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
 
 - **ai**: The main command that provides access to AI assistant features
   ```
-  chef-cli ai --help
+  chef ai --help
   ```
 
 - **ai ask**: Ask a question to the AI assistant
   ```
-  chef-cli ai ask "How do I write a recipe to configure a web server?"
+  chef ai ask "How do I write a recipe to configure a web server?"
   ```
   
   Options:
   - `--temperature TEMP`: Set the response creativity (0.0-2.0)
   - `--system PROMPT`: Set a custom system prompt
   - `--verbose, -v`: Show detailed response information
+
+- **ai explain**: Get an explanation of Chef-related files or directories
+  ```
+  chef ai explain path/to/file.rb
+  chef ai explain path/to/directory
+  ```
+
+  Options:
+  - `--temperature TEMP`: Set the response creativity (0.0-2.0)
+  - `--verbose, -v`: Show detailed response information
+
+- **ai command**: Generate Chef commands from natural language descriptions
+  ```
+  chef ai command "bootstrap a windows node"
+  chef ai command "list all cookbooks on the server"
+  ```
+
+  Features:
+  - Translates natural language into proper Chef commands
+  - Provides explanations of what each command does
+  - Handles multiple command options when available
+  - Interactive prompts to fill in command placeholders
+  - Displays the final command in a formatted box for easy copying
+  
+  Options:
+  - `--temperature TEMP`: Set the response creativity (0.0-2.0)
+  - `--verbose, -v`: Show detailed response information
+  
+## Examples
+
+### Using the Command Generator
+
+```
+$ chef ai command "bootstrap a windows node"
+
+🔍 Processing:
+  "bootstrap a windows node"
+[...] Generating command...
+
+🤖 Chef Command Generator:
+To bootstrap a Windows node using Chef, you would typically use the `knife bootstrap windows winrm` command...
+
+Available commands:
+1. knife bootstrap windows winrm <NODE_IP> -x <USERNAME> -P <PASSWORD> --node-name <NODE_NAME> --run-list "<RUN_LIST>"
+2. knife bootstrap windows winrm 192.168.1.100 -x Administrator -P 'SuperSecurePassword' --node-name webserver01 --run-list "recipe[iis]"
+
+Enter number of command to use (or 0 to skip): 1
+Enter value for NODE_IP: 192.168.1.156
+Enter value for USERNAME: Administrator
+Enter value for PASSWORD: SecurePassword
+Enter value for NODE_NAME: win-node-1
+Enter value for RUN_LIST: recipe[windows],recipe[iis]
+
+============================================================
+##  GENERATED CHEF COMMAND  ##
+============================================================
+
+    knife bootstrap windows winrm 192.168.1.156 -x Administrator -P SecurePassword --node-name win-node-1 --run-list "recipe[windows],recipe[iis]"
+============================================================
+
+✓ Just copy and paste this command into your terminal to use it.
+```
+
+### Using the Explain Feature
+
+```
+$ chef ai explain cookbooks/apache
+
+💼 Analyzing:
+  cookbooks/apache
+[...] Consulting AI assistant...
+
+🤖 AI Explanation:
+This directory contains a Chef cookbook named "apache" that's responsible for installing and configuring the Apache web server...
+```
 
 ## Development
 
