@@ -18,9 +18,27 @@ module ChefAiAssistant
     }.freeze
 
     def initialize(parent_gem_name = nil, parent_gem_version = nil, parent_gem_description = nil)
-      @parent_gem_name = parent_gem_name || 'chef'
-      @parent_gem_version = parent_gem_version || 'unknown'
-      @parent_gem_description = parent_gem_description || KNOWN_GEMS[@parent_gem_name.to_s] || 'Chef command-line tool'
+      # Handle edge cases with safe defaults
+      @parent_gem_name = if parent_gem_name.nil? || parent_gem_name.to_s.strip.empty?
+                           'chef'
+                         else
+                           parent_gem_name.to_s.downcase
+                         end
+
+      @parent_gem_version = if parent_gem_version.nil? || parent_gem_version.to_s.strip.empty?
+                              'unknown'
+                            else
+                              parent_gem_version.to_s
+                            end
+
+      # Use provided description or get from known gems, with fallback
+      @parent_gem_description = if !parent_gem_description.nil? && !parent_gem_description.to_s.strip.empty?
+                                  parent_gem_description
+                                elsif KNOWN_GEMS.key?(@parent_gem_name)
+                                  KNOWN_GEMS[@parent_gem_name]
+                                else
+                                  'Chef ecosystem tool'
+                                end
     end
 
     # Returns a formatted string describing the integration context

@@ -15,26 +15,73 @@ module ChefAiAssistant
 
       # Load the system prompt using the template renderer
       def load_system_prompt(_prompt_path, command_type = nil)
-        # No need to require - it's already loaded in chef-ai-assistant.rb
+        # Ensure configuration exists
+        begin
+          # Ensure ChefAiAssistant module is loaded
+          require 'chef-ai-assistant' unless defined?(ChefAiAssistant)
 
-        # Check if strict context mode is enabled
-        strict_context = ChefAiAssistant.configuration&.strict_context_aware.nil? || ChefAiAssistant.configuration.strict_context_aware
+          # Initialize configuration if needed
+          ChefAiAssistant.configuration ||= ChefAiAssistant::Configuration.new
+        rescue StandardError => e
+          puts "Warning: Failed to initialize configuration: #{e.message}" if ENV['DEBUG']
+        end
 
-        # Get integration context
-        integration_context = ChefAiAssistant.respond_to?(:integration_context) ? ChefAiAssistant.integration_context : nil
+        # Check if strict context mode is enabled (with safeguards)
+        begin
+          strict_context = if ChefAiAssistant.respond_to?(:configuration) && ChefAiAssistant.configuration
+                             if ChefAiAssistant.configuration.respond_to?(:strict_context_aware)
+                               ChefAiAssistant.configuration.strict_context_aware.nil? ||
+                                 ChefAiAssistant.configuration.strict_context_aware
+                             else
+                               true # Default to strict if not set
+                             end
+                           else
+                             true # Default to strict if configuration isn't available
+                           end
+        rescue StandardError => e
+          strict_context = true # Default to strict in case of errors
+          puts "Warning: Error determining context mode: #{e.message}" if ENV['DEBUG']
+        end
 
-        # Prepare template variables
+        # Get integration context with safe fallbacks
+        begin
+          integration_context = if ChefAiAssistant.respond_to?(:integration_context)
+                                  ChefAiAssistant.integration_context
+                                else
+                                  ChefAiAssistant::IntegrationContext.new
+                                end
+        rescue StandardError => e
+          # Create a minimal context if we can't get it from the module
+          begin
+            integration_context = ChefAiAssistant::IntegrationContext.new
+          rescue StandardError => e2
+            integration_context = nil
+            puts "Warning: Failed to create integration context: #{e2.message}" if ENV['DEBUG']
+          end
+          puts "Warning: Error getting integration context: #{e.message}" if ENV['DEBUG']
+        end
+
+        # Prepare template variables with safe defaults
         variables = {
           strict_context: strict_context,
           integration_context: integration_context,
-          command_type: command_type || @name
+          command_type: command_type || @name || 'general'
         }
 
         # Use the prompt renderer to generate the system prompt
-        prompt_template = command_type || @name
-        renderer = ChefAiAssistant::Utils::PromptRenderer.new
+        prompt_template = command_type || @name || 'base'
 
         begin
+          # First try to load the renderer
+          renderer = ChefAiAssistant::Utils::PromptRenderer.new
+        rescue StandardError => e
+          # If renderer fails to load, use a simple fallback
+          puts "Warning: Failed to create prompt renderer: #{e.message}" if ENV['DEBUG']
+          return get_fallback_prompt(variables)
+        end
+
+        begin
+          # Try primary template
           @system_prompt = renderer.render(prompt_template, variables)
         rescue ArgumentError => e
           # If the specific template doesn't exist, fall back to base
@@ -43,23 +90,52 @@ module ChefAiAssistant
               @system_prompt = renderer.render('base', variables)
             rescue StandardError => base_error
               # If even base template fails, use a simple fallback
-              @system_prompt = "You are a Chef expert AI assistant focusing on #{integration_context&.parent_gem_name || 'chef'}."
+              @system_prompt = get_fallback_prompt(variables)
               if ENV['DEBUG']
                 puts "Warning: Base template error: #{base_error.message}\n#{base_error.backtrace.join("\n")}"
               end
             end
           else
             # If base template was requested but failed, use a simple fallback
-            @system_prompt = "You are a Chef expert AI assistant focusing on #{integration_context&.parent_gem_name || 'chef'}."
+            @system_prompt = get_fallback_prompt(variables)
           end
           puts "Warning: #{e.message}" if ENV['DEBUG']
         rescue StandardError => e
           # Catch any other errors and provide a simple fallback
-          @system_prompt = "You are a Chef expert AI assistant focusing on #{integration_context&.parent_gem_name || 'chef'}."
+          @system_prompt = get_fallback_prompt(variables)
           puts "Error rendering template: #{e.message}\n#{e.backtrace.join("\n")}" if ENV['DEBUG']
         end
 
         @system_prompt
+      end
+
+      private
+
+      # Generate a fallback prompt when everything else fails
+      def get_fallback_prompt(variables)
+        gem_name = if variables[:integration_context].respond_to?(:parent_gem_name)
+                     variables[:integration_context].parent_gem_name
+                   elsif variables[:integration_context].is_a?(String)
+                     variables[:integration_context]
+                   else
+                     'chef'
+                   end
+
+        command_type = variables[:command_type] || 'general'
+
+        # Create a basic but helpful prompt
+        prompt = "You are a Chef expert AI assistant focusing on #{gem_name}. "
+        prompt += "You specialize in helping with #{command_type} tasks. "
+        prompt += 'Provide clear, concise answers to Chef-related questions.'
+
+        # Add context awareness information if available
+        if variables[:strict_context] == false
+          prompt += ' You can answer questions about the entire Chef ecosystem.'
+        elsif gem_name != 'chef'
+          prompt += " Focus on #{gem_name}-specific functionality."
+        end
+
+        prompt
       end
 
       def setup_command
@@ -105,14 +181,50 @@ module ChefAiAssistant
         raise NotImplementedError, "#{self.class} must implement the run method"
       end
 
-      # Ensure credentials exist before running commands
+      # Ensure credentials exist before running commands with better error handling
       def ensure_credentials_exist
-        return if ChefAiAssistant::CredentialsManager.credentials_exist?
+        # First check if credentials exist
+        begin
+          return true if ChefAiAssistant::CredentialsManager.credentials_exist?
+        rescue StandardError => e
+          # Log the error but continue with the warning process
+          puts "Error checking credentials: #{e.message}" if ENV['DEBUG']
+        end
 
-        # If we reach here, credentials don't exist
-        prompt = TTY::Prompt.new
-        prompt.error('Azure OpenAI credentials not found')
-        prompt.say("Please run 'chef ai setup' to configure your credentials")
+        # Determine the command prefix for setup instructions based on integration context
+        cmd_prefix = 'chef'
+        begin
+          if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+            cmd_prefix = ChefAiAssistant.integration_context.parent_gem_name
+          end
+        rescue StandardError => e
+          # If there's an error determining the integration context, use default
+          puts "Error determining command prefix: #{e.message}" if ENV['DEBUG']
+        end
+
+        # If we reach here, credentials don't exist - try to display a helpful message
+        begin
+          # Only use TTY if in terminal
+          if $stdout.isatty && !ENV['CI'] && !ENV['TEST']
+            require 'tty-prompt'
+            prompt = TTY::Prompt.new
+            prompt.error('Azure OpenAI credentials not found')
+            prompt.say("Please run '#{cmd_prefix} ai setup' to configure your credentials")
+          else
+            # In non-TTY environment (like CI), use simple puts
+            puts 'Error: Azure OpenAI credentials not found'
+            puts "Please run '#{cmd_prefix} ai setup' to configure your credentials"
+          end
+        rescue LoadError => e
+          # TTY gem might not be available, fall back to basic output
+          puts "Error: Azure OpenAI credentials not found (#{e.message})"
+          puts "Please run '#{cmd_prefix} ai setup' to configure your credentials"
+        rescue StandardError => e
+          # Any other error, still try to show message
+          puts "Error: Azure OpenAI credentials not found (#{e.message})"
+          puts "Please run '#{cmd_prefix} ai setup' to configure your credentials"
+        end
+
         exit 1
       end
 
@@ -219,22 +331,70 @@ module ChefAiAssistant
 
       # Static register method for child classes to register with parent applications
       def self.register_subcommand(app_class, command_name, description, command_class)
-        # This method should be implemented by the gem that includes chef-ai-assistant
-        # For example, in chef-cli, this would register the 'ai' command
+        # Try multiple registration methods to support different CLI frameworks
+
+        # Method 1: Chef-style register_subcommand
         if app_class.respond_to?(:register_subcommand)
           app_class.register_subcommand(command_name, description, command_class)
-        else
-          # Default implementation if the parent class doesn't have a register method
-          if app_class.const_defined?(:Subcommands)
-            subcommands = app_class.const_get(:Subcommands)
-          else
-            subcommands = Module.new
-            app_class.const_set(:Subcommands, subcommands)
-          end
+          puts 'Registered AI command using register_subcommand' if ENV['DEBUG']
+          return true
+        end
 
-          # Create the command class in the parent's Subcommands namespace
-          subcommand_class = Class.new(command_class)
-          subcommands.const_set(command_name.capitalize, subcommand_class)
+        # Method 2: Thor/CLI Kit style commands
+        if app_class.respond_to?(:desc) && app_class.respond_to?(:subcommand)
+          app_class.desc command_name, description
+          app_class.subcommand command_name, command_class
+          puts 'Registered AI command using Thor-style subcommand' if ENV['DEBUG']
+          return true
+        end
+
+        # Method 3: Register with command map
+        if app_class.respond_to?(:commands) && app_class.commands.is_a?(Hash)
+          app_class.commands[command_name] = command_class.new
+          puts 'Registered AI command using commands hash' if ENV['DEBUG']
+          return true
+        end
+
+        # Method 4: Register through class method
+        if app_class.respond_to?(:register)
+          app_class.register(command_class, command_name, "#{command_name} [SUBCOMMAND]", description)
+          puts 'Registered AI command using register method' if ENV['DEBUG']
+          return true
+        end
+
+        # Method 5: Create a subcommands namespace (Chef style)
+        # Default implementation if the parent class doesn't have a register method
+        if app_class.const_defined?(:Subcommands)
+          subcommands = app_class.const_get(:Subcommands)
+        else
+          subcommands = Module.new
+          app_class.const_set(:Subcommands, subcommands)
+        end
+
+        # Create the command class in the parent's Subcommands namespace
+        const_name = command_name.capitalize.gsub(/[-_]([a-z])/) { ::Regexp.last_match(1).upcase }
+        subcommand_class = Class.new(command_class)
+        subcommands.const_set(const_name, subcommand_class)
+        puts 'Registered AI command using subcommands namespace' if ENV['DEBUG']
+        true
+      rescue StandardError => e
+        # Log the error but don't crash
+        puts "Warning: Failed standard registration for #{command_name}: #{e.message}" if ENV['DEBUG']
+        puts e.backtrace.join("\n") if ENV['DEBUG']
+
+        # Last resort: Monkey patch the class to add our command
+        begin
+          # Define a method on the app_class to handle the command
+          app_class.class_eval do
+            define_method(command_name.to_sym) do |*args|
+              command_class.new.run(args)
+            end
+          end
+          puts "Added #{command_name} method to #{app_class}" if ENV['DEBUG']
+          true
+        rescue StandardError => eval_error
+          puts "Failed to add method via class_eval: #{eval_error.message}" if ENV['DEBUG']
+          false
         end
       end
     end

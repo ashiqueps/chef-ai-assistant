@@ -125,12 +125,55 @@ module ChefAiAssistant
 
       # Class method to register this command with a parent application
       def self.register_with(app_class)
+        # Check if the app_class supports the standard Chef CLI pattern
         ChefAiAssistant::Command::Base.register_subcommand(
           app_class,
           'ai',
           'Chef AI Assistant commands',
           self
         )
+      rescue NoMethodError => e
+        # If standard registration fails, try alternative approaches
+        if app_class.respond_to?(:commands)
+          # For command map style CLIs (like Thor)
+          begin
+            app_class.commands['ai'] = new
+            puts 'Registered AI command using command map style' if ENV['DEBUG']
+          rescue StandardError => cmd_error
+            puts "Failed to register via commands map: #{cmd_error.message}" if ENV['DEBUG']
+          end
+        elsif app_class.respond_to?(:register)
+          # For register style CLIs
+          begin
+            app_class.register(self, 'ai', 'ai [SUBCOMMAND]', 'Chef AI Assistant commands')
+            puts 'Registered AI command using register style' if ENV['DEBUG']
+          rescue StandardError => reg_error
+            puts "Failed to register via register method: #{reg_error.message}" if ENV['DEBUG']
+          end
+        elsif app_class.respond_to?(:define_command)
+          # For APIs that use define_command
+          begin
+            app_class.define_command(:ai, self)
+            puts 'Registered AI command using define_command style' if ENV['DEBUG']
+          rescue StandardError => def_error
+            puts "Failed to register via define_command: #{def_error.message}" if ENV['DEBUG']
+          end
+        else
+          # Last resort - monkey patch the class to add our command
+          puts 'Warning: Could not find standard registration method, attempting manual registration' if ENV['DEBUG']
+          begin
+            # Define a method on the app_class to handle 'ai' commands
+            app_class.class_eval do
+              define_method(:ai) do |*args|
+                ChefAiAssistant::Commands::Ai.new.run(args)
+              end
+            end
+            puts "Added ai method to #{app_class.name}" if ENV['DEBUG']
+          rescue StandardError => eval_error
+            puts "Failed to register via class_eval: #{eval_error.message}" if ENV['DEBUG']
+            raise e # Re-raise original error if all approaches fail
+          end
+        end
       end
     end
   end
