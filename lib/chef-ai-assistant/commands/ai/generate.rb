@@ -109,6 +109,15 @@ module ChefAiAssistant
             return 1
           end
 
+          # Debug info for integration debugging
+          if ENV['CHEF_AI_DEBUG'] || @verbose
+            puts Rainbow("\nDEBUG: Preparing to generate content").yellow
+            if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+              puts "Integration context: #{ChefAiAssistant.integration_context.parent_gem_name}"
+            end
+            puts "Output directory: #{@output_dir}"
+          end
+
           spinner = TTY::Spinner.new("[:spinner] #{Rainbow('Generating Chef files...').bright.cyan}", format: :dots)
           spinner.auto_spin
 
@@ -157,7 +166,19 @@ module ChefAiAssistant
           content = response.dig('choices', 0, 'message', 'content')
 
           if content
-            process_and_generate_files(content, prompt)
+            # Debug the content type for possible integration issues
+            if ENV['CHEF_AI_DEBUG'] || @verbose
+              puts Rainbow("\nDEBUG: Got response, content type: #{content.class.name}, length: #{content.length}").yellow
+              puts Rainbow("DEBUG: Content preview: #{content[0..100]}...").yellow
+            end
+            
+            result = process_and_generate_files(content, prompt)
+            
+            # If process_and_generate_files returned an error hash instead of completing successfully
+            if result.is_a?(Hash) && result[:success] == false
+              puts Rainbow("Error processing content: #{result[:error]}").red.bold
+              return 1
+            end
 
             if @verbose
               puts "\n#{Rainbow('Response Details:').bright.blue.bold}"
@@ -167,19 +188,104 @@ module ChefAiAssistant
               puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
               puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
             end
+            
+            return 0
           else
             puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
+            return 1
           end
         rescue StandardError => e
           spinner&.error('(✗)')
-          TTY::Prompt.new
+          prompt = TTY::Prompt.new
           puts Rainbow("Error: #{e.message}").red.bold
           puts Rainbow(e.backtrace.join("\n")).red if @verbose
+          return 1
+        end
+
+        # Add a public method that can be called directly by integrating gems
+        def process_content_directly(content, description = 'Generated content')
+          prompt = TTY::Prompt.new
+          
+          # Add debugging for chef-cli integration
+          if @verbose
+            puts "DEBUG: Processing content directly"
+            puts "DEBUG: Content type: #{content.class.name}"
+            puts "DEBUG: Content preview: #{content[0..100]}..."
+            if content.is_a?(Hash)
+              puts "DEBUG: Top-level keys: #{content.keys.join(', ')}"
+            end
+          end
+          
+          # Extract JSON content from response
+          json_content = extract_json(content) || manual_json_extraction(content)
+          
+          # More debugging after extraction
+          if @verbose && json_content
+            puts "DEBUG: Extracted JSON content"
+            puts "DEBUG: JSON content type: #{json_content.class.name}"
+            puts "DEBUG: Top-level keys: #{json_content.keys.join(', ')}" if json_content.is_a?(Hash)
+          end
+          
+          # If the JSON has a nested structure (e.g., directories with files), flatten it
+          if json_content && json_content.is_a?(Hash)
+            # Check if it's already flattened or needs flattening
+            needs_flattening = json_content.any? { |_, v| v.is_a?(Hash) }
+            
+            # Special handling for files nested under "files" key
+            if json_content.key?('files') && json_content['files'].is_a?(Hash)
+              # Move files up from the "files" key to avoid extra nesting
+              files_content = json_content.delete('files')
+              json_content.merge!(files_content)
+              puts "DEBUG: Removed 'files/' nesting from JSON structure" if @verbose
+            end
+            
+            # Filter out special metadata keys before processing
+            json_content.delete('cookbook_name')
+            json_content.delete('directories')
+            json_content.each_key do |key|
+              json_content.delete(key) if key.start_with?('_')
+            end
+            
+            # Additional handling for content keys in hashes
+            json_content.each do |key, value|
+              if value.is_a?(Hash) && value.key?('content') && value.keys.size == 1
+                json_content[key] = value['content'].to_s
+                puts "DEBUG: Simplified content hash for #{key}" if @verbose
+              end
+            end
+            
+            if needs_flattening
+              json_content = flatten_nested_json_structure(json_content)
+              puts "DEBUG: Flattened JSON structure for proper file generation" if @verbose
+              puts "DEBUG: Final keys: #{json_content.keys.join(', ')}" if @verbose && json_content.is_a?(Hash)
+            end
+            
+            # Process the flattened content
+            process_and_generate_files(json_content, prompt)
+          else
+            # Regular processing if it's not a nested structure or extraction failed
+            process_and_generate_files(content, prompt)
+          end
+        rescue StandardError => e
+          prompt = TTY::Prompt.new
+          prompt.error("Error processing content: #{e.message}")
+          prompt.say("\n🤖 #{Rainbow('Raw Content:').bright.blue.bold}")
+          puts content[0..200] + '...' # Show just the beginning to avoid overwhelming output
+          puts Rainbow(e.backtrace.join("\n")).red if @verbose
+          
+          # Return the error for handling by the calling gem
+          return { success: false, error: e.message, content: content }
         end
 
         private
 
         def process_and_generate_files(content, prompt)
+          # Handle nil or empty content
+          if content.nil? || content.strip.empty?
+            prompt.error('Received empty content from AI')
+            return { success: false, error: 'Empty content received from AI' }
+          end
+          
           # Extract explanation text before JSON
           explanation = ''
           json_start_index = content.index('{')
@@ -197,9 +303,27 @@ module ChefAiAssistant
               prompt.error('Failed to parse AI response as JSON')
               prompt.say("\n🤖 #{Rainbow('AI Response:').bright.blue.bold}")
               puts content
-              return
+              
+              # Debug information to help with integration issues
+              if ENV['CHEF_AI_DEBUG'] || @verbose
+                puts Rainbow("\nDEBUG: Integration context:").red
+                if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+                  puts "Parent gem: #{ChefAiAssistant.integration_context.parent_gem_name}"
+                  puts "Version: #{ChefAiAssistant.integration_context.parent_gem_version}"
+                else
+                  puts "No integration context available"
+                end
+                puts Rainbow("DEBUG: Raw content type: #{content.class.name}").red
+                puts Rainbow("DEBUG: Raw content length: #{content.length}").red
+                puts Rainbow("DEBUG: Content preview: #{content[0..100]}...").red
+              end
+              
+              return { success: false, error: 'Failed to parse AI response as JSON', content: content }
             end
           end
+
+          # Flatten nested JSON structure
+          json_content = flatten_nested_json_structure(json_content)
 
           # Display the AI's explanation if available
           unless explanation.empty?
@@ -327,55 +451,107 @@ module ChefAiAssistant
           prompt.say("\n#{Rainbow('Generation Summary:').bright.blue.bold}")
           prompt.say(Rainbow("#{success_count} of #{total_count} files/directories created successfully").green.to_s)
           prompt.say("#{Rainbow('Location:').bright.yellow} #{Rainbow(@output_dir).bright.white}")
+          
+          # Return success status and information
+          { success: true, files_created: success_count, total_files: total_count, output_dir: @output_dir }
         end
 
         def extract_json(content)
-          # First try to extract JSON from code blocks
-          json_match = content.match(/```(?:json)?\s*(\{.*?\})```/m)
-          json_str = json_match ? json_match[1] : content
+          return nil if content.nil? || content.empty?
 
-          # Try to parse JSON
-          begin
-            JSON.parse(json_str)
-          rescue JSON::ParserError
-            # If the first attempt fails, try to find and parse JSON without code blocks
+          # Handle case where the content is already a hash (it's been pre-parsed)
+          return content if content.is_a?(Hash)
+
+          # First try to extract JSON from code blocks with explicitly marked json
+          json_match = content.match(/```(?:json)\s*(.*?)```/m)
+          if json_match
             begin
-              # Look for content that looks like JSON - more comprehensive pattern matching
-              if content =~ /\{.*\}/m
-                # Try to extract the full JSON object, not just the first occurrence
-                content_without_backticks = content.gsub(/```.*?```/m, '')
-                opening_brace_index = content_without_backticks.index('{')
-                if opening_brace_index
-                  # Find the matching closing brace by counting opening and closing braces
-                  open_count = 1
-                  closing_brace_index = nil
+              # Try with the content in the json code block
+              json_str = json_match[1].strip
+              # Ensure we have a complete JSON object
+              if json_str.start_with?('{') && json_str.end_with?('}')
+                return JSON.parse(json_str)
+              end
+            rescue JSON::ParserError => e
+              puts "JSON parsing error from code block: #{e.message}" if @verbose
+              # Continue to other extraction methods
+            end
+          end
+          
+          # Try to extract JSON from any code block
+          code_match = content.match(/```\s*(.*?)```/m)
+          if code_match
+            begin
+              # Try with the content in the code block
+              code_str = code_match[1].strip
+              # Only attempt to parse if it looks like JSON
+              if code_str.start_with?('{') && code_str.end_with?('}')
+                return JSON.parse(code_str)
+              end
+            rescue JSON::ParserError => e
+              puts "JSON parsing error from any code block: #{e.message}" if @verbose
+              # Continue to other extraction methods
+            end
+          end
 
-                  ((opening_brace_index + 1)...content_without_backticks.length).each do |i|
-                    char = content_without_backticks[i]
-                    open_count += 1 if char == '{'
-                    open_count -= 1 if char == '}'
+          # Try to parse the entire content as JSON directly
+          begin
+            return JSON.parse(content)
+          rescue JSON::ParserError
+            # Continue to more aggressive extraction methods
+          end
+          
+          # More aggressive extraction - find first { and last }
+          begin
+            if content =~ /\{.*\}/m
+              # Try to extract the full JSON object using the balanced brace approach
+              content_without_backticks = content.gsub(/```.*?```/m, '')
+              opening_brace_index = content_without_backticks.index('{')
+              
+              if opening_brace_index
+                # Find the matching closing brace by counting opening and closing braces
+                open_count = 1
+                closing_brace_index = nil
 
-                    if open_count.zero?
-                      closing_brace_index = i
-                      break
-                    end
-                  end
+                ((opening_brace_index + 1)...content_without_backticks.length).each do |i|
+                  char = content_without_backticks[i]
+                  open_count += 1 if char == '{'
+                  open_count -= 1 if char == '}'
 
-                  if closing_brace_index
-                    json_block = content_without_backticks[opening_brace_index..closing_brace_index]
-                    return JSON.parse(json_block)
+                  if open_count.zero?
+                    closing_brace_index = i
+                    break
                   end
                 end
 
-                # Fall back to regex if the balanced brace approach doesn't work
-                json_block = content.match(/(\{.*\})/m)[1]
-                JSON.parse(json_block)
+                if closing_brace_index
+                  json_block = content_without_backticks[opening_brace_index..closing_brace_index]
+                  
+                  # Debug output for troubleshooting
+                  if @verbose
+                    puts "Found JSON block: #{json_block[0..50]}..." 
+                  end
+                  
+                  return JSON.parse(json_block)
+                end
               end
-            rescue StandardError => e
-              puts "JSON parsing error: #{e.message}" if @verbose
-              nil
             end
+          rescue StandardError => e
+            puts "Error during balanced brace extraction: #{e.message}" if @verbose
           end
+          
+          # Last resort - try to find something that looks like JSON using regex
+          begin
+            if match = content.match(/(\{.*\})/m)
+              json_block = match[1]
+              return JSON.parse(json_block)
+            end
+          rescue StandardError => e
+            puts "Error during regex JSON extraction: #{e.message}" if @verbose
+          end
+          
+          # If we got here, all extraction attempts failed
+          nil
         end
 
         # A manual approach to extract key-value pairs when standard JSON parsing fails
@@ -416,6 +592,81 @@ module ChefAiAssistant
             puts "Manual JSON extraction error: #{e.message}" if @verbose
             nil
           end
+        end
+
+        # Helper method to flatten nested JSON structures
+        def flatten_nested_json_structure(json_content, base_path = '')
+          flattened = {}
+          
+          return flattened if json_content.nil?
+          
+          # If we detect a common pattern where a file is represented with a hash containing a 'content' key
+          # Extract just the content value to avoid the Ruby hash representation in file content
+          if json_content.is_a?(Hash) && json_content.keys.size == 1 && json_content.key?('content')
+            return { base_path => json_content['content'].to_s } unless base_path.empty? || 
+                                                                       base_path == 'cookbook_name' || 
+                                                                       base_path == 'directories'
+            return {}
+          end
+          
+          # If the JSON is already flattened (or a string), return it as is
+          if json_content.is_a?(String) || !json_content.is_a?(Hash)
+            return { base_path => json_content.to_s } unless base_path.empty? || 
+                                                           base_path == 'cookbook_name' || 
+                                                           base_path == 'directories'
+            return {} # Skip if it's one of the special metadata keys
+          end
+          
+          # Process each key-value pair in the JSON
+          json_content.each do |key, value|
+            # Skip special metadata keys that should not be created as files
+            next if key == 'cookbook_name' || key == 'directories'
+            next if key.start_with?('_') # Skip keys starting with underscore as metadata
+            
+            # Check for a common pattern where 'files' is an intermediate directory
+            # We'll check if this is a standard structure and bypass the intermediate path
+            if key == 'files' && value.is_a?(Hash)
+              # Directly process the files content to avoid the extra 'files/' in paths
+              nested = flatten_nested_json_structure(value, base_path)
+              flattened.merge!(nested)
+              next
+            end
+            
+            path = base_path.empty? ? key : File.join(base_path, key)
+            
+            if value.is_a?(Hash)
+              # Check for files with content in a hash with a 'content' key
+              if value.keys.size == 1 && value.key?('content')
+                flattened[path] = value['content'].to_s
+                next
+              end
+              
+              # If the value is a hash (nested structure), recursively flatten it
+              if key.end_with?('/') || !key.include?('.')
+                # Create the directory entry
+                flattened[path + '/'] = ''
+                
+                # Recursively process the nested structure
+                nested = flatten_nested_json_structure(value, path)
+                flattened.merge!(nested)
+              else
+                # If the key has a file extension but the value is a hash,
+                # check for content key or convert to a string in a smart way
+                if value.key?('content')
+                  flattened[path] = value['content'].to_s
+                else
+                  # Try to avoid raw hash representation
+                  # For complex hashes, we'll use inspect but try to make it readable
+                  flattened[path] = value.inspect
+                end
+              end
+            else
+              # If the value is not a hash, it's a file (or empty dir if key ends with /)
+              flattened[path] = value.to_s
+            end
+          end
+          
+          flattened
         end
       end
     end

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    chef-ai-assistant (1.0.0)
+    chef-ai-assistant (1.0.1)
       rainbow (~> 3.0)
       tty-prompt (~> 0.23)
       tty-spinner (~> 0.9)
