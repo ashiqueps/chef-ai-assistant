@@ -8,14 +8,14 @@ require 'rainbow'
 
 # Helper method to run a command and display output
 def run_command(cmd)
-  puts "> #{cmd}"  # Removed Rainbow.dim to avoid the error
+  puts "> #{cmd}" # Removed Rainbow.dim to avoid the error
   system(cmd)
   puts "\n"
 end
 
 # Helper method to run a boundary test case
 def run_boundary_test(num, description, cmd)
-  puts "#{num}. #{description}"  # Removed Rainbow formatting to avoid errors
+  puts "#{num}. #{description}" # Removed Rainbow formatting to avoid errors
   run_command(cmd)
 end
 

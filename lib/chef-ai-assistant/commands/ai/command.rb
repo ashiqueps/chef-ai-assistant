@@ -199,10 +199,10 @@ module ChefAiAssistant
             end
           puts colored_content
 
-          # Offer to use one of the commands
+          # For a single command, use it directly without confirmation
           if commands.length == 1
-            command_to_run = prompt.yes?('Would you like to use this command?')
-            selected_command = commands[0] if command_to_run
+            selected_command = commands[0]
+            command_to_run = true
           elsif commands.length > 1
             # If multiple commands were found, let the user choose which one to use
             prompt.say("\n#{Rainbow('Available commands:').bright.yellow.bold}")

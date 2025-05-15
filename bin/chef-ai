@@ -12,26 +12,38 @@ require 'rainbow'
 # i.e. "chef-ai ask" instead of "chef-ai ai ask"
 
 begin
+  # Set up the integration context for the standalone binary
+  # For the standalone binary, we want to use relaxed context awareness
+  # to provide the full Chef ecosystem experience
+  ChefAiAssistant.configure do |config|
+    # We want the standalone binary to be able to generate commands for all Chef tools,
+    # including knife commands. Set to 'chef-ecosystem' to indicate we want comprehensive coverage.
+    config.integration_gem_name = 'chef-ecosystem'
+    config.integration_gem_version = ChefAiAssistant::VERSION
+    config.integration_gem_description = 'Complete Chef ecosystem with Knife, InSpec, and all Chef tools'
+    config.strict_context_aware = false # Allow answering about all Chef-related topics
+  end
+
   # Create an instance of the AI command class
   ai_command = ChefAiAssistant::Commands::Ai.new
 
   # Handle global flags
   if ARGV.empty? || ARGV[0] == '--help' || ARGV[0] == '-h'
     # Customize banner and help for the chef-ai binary
-    puts "Usage: chef-ai SUBCOMMAND [options]"
-    puts ""
-    puts Rainbow("Available subcommands:").bright.bold
+    puts 'Usage: chef-ai SUBCOMMAND [options]'
+    puts ''
+    puts Rainbow('Available subcommands:').bright.bold
     ai_command.subcommands.each do |name, cmd|
       puts "  #{Rainbow(name).bright.blue.ljust(12)} #{cmd.description}"
     end
-    puts ""
-    puts Rainbow("Options:").bright.bold
+    puts ''
+    puts Rainbow('Options:').bright.bold
     puts "  #{Rainbow('--help').bright.blue.ljust(12)} Show this message"
     puts "  #{Rainbow('--version').bright.blue.ljust(12)} Show Chef AI Assistant version"
-    puts ""
+    puts ''
     puts "Run 'chef-ai SUBCOMMAND --help' for more information on a specific subcommand."
     exit 0
-  elsif ARGV[0] == '--version' || ARGV[0] == '-v'
+  elsif ['--version', '-v'].include?(ARGV[0])
     puts "Chef AI Assistant #{ChefAiAssistant::VERSION}"
     exit 0
   end
@@ -57,40 +69,63 @@ begin
     exit 1
   end
 
-  # Handle subcommand help - this requires special handling to maintain UX 
-  if subcommand_args.include?('--help') || subcommand_args.include?('-h')
-    prompt = TTY::Prompt.new
-    
-    # Create custom help output for the subcommand
+  # Handle subcommand help - this requires special handling to maintain UX
+  # Only intercept if the ONLY argument is --help or -h
+  if [['--help'], ['-h']].include?(subcommand_args)
+    TTY::Prompt.new
+
+    # Create custom help output for the subcommand with correct binary name
     banner = ai_command.subcommands[subcommand].banner.gsub(/chef ai #{subcommand}/, "chef-ai #{subcommand}")
+
+    # Also handle other variations that might be in the banner
+    banner = banner.gsub(/Usage: chef ai/, 'Usage: chef-ai')
     desc = ai_command.subcommands[subcommand].description
-    
+
     puts banner
     puts
     puts desc
     puts
-    
+
     # Print options with formatting
-    puts Rainbow("Options:").bright.bold
+    puts Rainbow('Options:').bright.bold
     ai_command.subcommands[subcommand].options.each do |option, description|
       puts "  #{Rainbow(option).bright.blue.ljust(20)} #{description}"
     end
-    
+
     exit 0
   end
 
-  # Skip credential check for setup command
-  unless ChefAiAssistant::CredentialsManager.credentials_exist? || subcommand == 'setup'
+  # Skip credential check for setup command or if TEST_MODE is set
+  unless ChefAiAssistant::CredentialsManager.credentials_exist? ||
+         subcommand == 'setup' ||
+         ENV['TEST_MODE']
     prompt = TTY::Prompt.new
     prompt.error('AI Assistant credentials not configured!')
     puts "Please run 'chef-ai setup' to configure your Azure OpenAI credentials."
+    puts '(For testing without credentials, you can set TEST_MODE=1)'
     exit 1
   end
 
-  # For chef-ai binary, we transform the command structure
-  # Instead of "chef-ai ask ...", we use "chef ai ask ..."
-  modified_args = ['ai', subcommand] + subcommand_args
-  exit_code = ai_command.run(modified_args)
+  # For chef-ai standalone binary, we access the subcommand directly
+  # instead of going through the ChefAiAssistant::Commands::Ai class's run method
+  # This creates a simpler, more intuitive UX without requiring the 'ai' subcommand
+  subcommand_instance = ai_command.subcommands[subcommand]
+
+  # Fix the banner for the standalone binary
+  if subcommand_instance.banner
+    subcommand_instance.banner = subcommand_instance.banner.gsub(/chef ai #{subcommand}/, "chef-ai #{subcommand}")
+    subcommand_instance.banner = subcommand_instance.banner.gsub(/Usage: chef ai/, 'Usage: chef-ai')
+  end
+
+  # Enable more verbose debugging if requested
+  if ENV['DEBUG']
+    puts "DEBUG: Running chef-ai with subcommand: #{subcommand}"
+    puts "DEBUG: Subcommand arguments: #{subcommand_args.inspect}"
+    puts "DEBUG: Using integration context: #{ChefAiAssistant.configuration.integration_gem_name}"
+  end
+
+  # Execute the subcommand directly with its arguments
+  exit_code = subcommand_instance.run(subcommand_args)
   exit(exit_code || 0)
 rescue StandardError => e
   puts Rainbow("Error: #{e.message}").red

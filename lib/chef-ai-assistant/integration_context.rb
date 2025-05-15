@@ -13,7 +13,8 @@ module ChefAiAssistant
       'kitchen' => 'Test Kitchen for automated testing of infrastructure code',
       'inspec' => 'InSpec for compliance automation and security testing',
       'habitat' => 'Habitat for application packaging and runtime management',
-      'hab' => 'Habitat for application packaging and runtime management'
+      'hab' => 'Habitat for application packaging and runtime management',
+      'chef-ecosystem' => 'Complete Chef ecosystem with all Chef tools and capabilities'
     }.freeze
 
     def initialize(parent_gem_name = nil, parent_gem_version = nil, parent_gem_description = nil)
@@ -53,7 +54,12 @@ module ChefAiAssistant
         'kitchen' => ['test kitchen', 'kitchen', 'kitchen.yml', 'testing', 'infrastructure testing', 'kitchen driver'],
         'inspec' => ['inspec', 'compliance', 'audit', 'security', 'controls', 'profiles', 'compliance automation'],
         'habitat' => ['habitat', 'hab', 'application packaging', 'runtime', 'supervisor', 'service', 'plans'],
-        'hab' => ['habitat', 'hab', 'application packaging', 'runtime', 'supervisor', 'service', 'plans']
+        'hab' => ['habitat', 'hab', 'application packaging', 'runtime', 'supervisor', 'service', 'plans'],
+        'chef-ecosystem' => ['chef', 'chef-cli', 'chef client', 'chef server', 'chefdk', 'chef workstation',
+                             'knife', 'nodes', 'data bags', 'environments', 'roles', 'cookbooks',
+                             'test kitchen', 'kitchen', 'kitchen.yml', 'testing',
+                             'inspec', 'compliance', 'audit', 'security', 'controls', 'profiles',
+                             'habitat', 'hab', 'application packaging', 'runtime', 'supervisor', 'service', 'plans']
       }
 
       topics[@parent_gem_name.to_s.downcase] || ['chef'] # Default to chef topics only
@@ -87,7 +93,8 @@ module ChefAiAssistant
         'kitchen' => 'Focus on infrastructure testing, test configuration, drivers, verifiers, and test lifecycle management.',
         'inspec' => 'Focus on compliance automation, security scanning, control writing, and compliance profile management.',
         'habitat' => 'Focus on application packaging, runtime supervision, service deployment, and application lifecycle.',
-        'hab' => 'Focus on application packaging, runtime supervision, service deployment, and application lifecycle.'
+        'hab' => 'Focus on application packaging, runtime supervision, service deployment, and application lifecycle.',
+        'chef-ecosystem' => 'Use the most appropriate Chef tool for each task. For node operations and Chef Server interaction, use knife commands. For local development, use chef commands. For compliance, use inspec. For application packaging, use habitat.'
       }
 
       instructions[@parent_gem_name.to_s.downcase] || 'Focus on general Chef ecosystem functionality and capabilities.'

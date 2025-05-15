@@ -33,27 +33,27 @@ tests = [
     command: 'ruby -I lib bin/chef-ai --version'
   },
   {
-    description: "Testing subcommand help (ask)",
+    description: 'Testing subcommand help (ask)',
     command: 'ruby -I lib bin/chef-ai ask --help'
   },
   {
-    description: "Testing subcommand help (command)",
+    description: 'Testing subcommand help (command)',
     command: 'ruby -I lib bin/chef-ai command --help'
   },
   {
-    description: "Testing subcommand help (explain)",
+    description: 'Testing subcommand help (explain)',
     command: 'ruby -I lib bin/chef-ai explain --help'
   },
   {
-    description: "Testing subcommand help (generate)",
+    description: 'Testing subcommand help (generate)',
     command: 'ruby -I lib bin/chef-ai generate --help'
   },
   {
-    description: "Testing subcommand help (setup)",
+    description: 'Testing subcommand help (setup)',
     command: 'ruby -I lib bin/chef-ai setup --help'
   },
   {
-    description: "Testing subcommand help (troubleshoot)",
+    description: 'Testing subcommand help (troubleshoot)',
     command: 'ruby -I lib bin/chef-ai troubleshoot --help'
   }
 ]
