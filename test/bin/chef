@@ -2,18 +2,32 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
-require 'dotenv/load'
 require 'chef-ai-assistant'
 require 'tty-spinner'
 require 'tty-prompt'
 
-# Check if API credentials are set
-unless ENV['AZURE_OPENAI_API_KEY'] && ENV['AZURE_OPENAI_ENDPOINT'] && ENV['AZURE_OPENAI_DEPLOYMENT_NAME']
+# Handle special cases before checking for credentials
+# Special cases are: setup command, help flag, or version flag
+if ARGV.length >= 2 && ARGV[0] == 'ai' &&
+   ['setup', '--help', '-h', '--version', '-v'].include?(ARGV[1])
+  ai_command = ChefAiAssistant::Commands::Ai.new
+  exit_code = ai_command.run(ARGV[1..-1])
+  exit(exit_code || 0)
+end
+
+# Also handle the case where ai has a global help or version flag
+if ARGV.length >= 1 && ARGV[0] == 'ai' &&
+   (ARGV.include?('--help') || ARGV.include?('-h') || ARGV.include?('--version') || ARGV.include?('-v'))
+  ai_command = ChefAiAssistant::Commands::Ai.new
+  exit_code = ai_command.run(ARGV[1..-1])
+  exit(exit_code || 0)
+end
+
+# Check if credentials file exists
+unless ChefAiAssistant::CredentialsManager.credentials_exist?
   prompt = TTY::Prompt.new
-  prompt.error('Please set the following environment variables in a .env file:')
-  puts '  AZURE_OPENAI_API_KEY=your_api_key'
-  puts '  AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com'
-  puts '  AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name'
+  prompt.error('AI Assistant credentials not configured!')
+  puts "Please run 'chef ai setup' to configure your Azure OpenAI credentials."
   exit 1
 end
 
@@ -22,11 +36,15 @@ spinner = TTY::Spinner.new('[:spinner] Configuring ChefAiAssistant...', format: 
 spinner.auto_spin
 begin
   ChefAiAssistant.configure do |config|
-    config.api_key = ENV['AZURE_OPENAI_API_KEY']
-    config.api_version = ENV['AZURE_OPENAI_API_VERSION'] || '2023-05-15'
-    config.azure_endpoint = ENV['AZURE_OPENAI_ENDPOINT']
-    config.deployment_name = ENV['AZURE_OPENAI_DEPLOYMENT_NAME']
+    # Set integration context for proper boundary testing
+    config.integration_gem_name = 'chef'
+    config.integration_gem_version = ChefAiAssistant::VERSION
+    config.integration_gem_description = 'Chef command-line tool for infrastructure automation'
+
+    # Use relaxed context mode for the 'chef' command to allow answering general Chef questions
+    config.strict_context_aware = false
   end
+
   spinner.success('(✓)')
 rescue StandardError => e
   spinner.error('(✗)')

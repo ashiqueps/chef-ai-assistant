@@ -22,20 +22,19 @@ module ChefAiAssistant
           @verbose = false
           @temperature = 0.7
 
-          # Read the system prompt from the file
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
-
-          # Add ask-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'Your current task is to answer questions related to Chef ecosystem components, tools, ' \
-                           'best practices, and general usage. Provide clear, concise, and accurate information ' \
-                           'that helps the user understand Chef concepts and solve problems.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'ask')
         end
 
         def run(args = [])
           if args.empty? || args.include?('--help') || args.include?('-h')
             help
+            return 0
+          end
+
+          # Handle version flag
+          if args.include?('--version') || args.include?('-v')
+            show_version
             return 0
           end
 
@@ -97,10 +96,7 @@ module ChefAiAssistant
           prompt = TTY::Prompt.new
 
           # Create messages array with system and user prompts
-          messages = [
-            { role: 'system', content: @system_prompt },
-            { role: 'user', content: question }
-          ]
+          messages = create_message_array(question)
 
           prompt.say("💬 #{Rainbow('Question:').bright.yellow.bold}")
           prompt.say("  #{Rainbow(question).bright.white}")
@@ -116,38 +112,8 @@ module ChefAiAssistant
 
           spinner.stop
 
-          # Extract and display the response
-          content = response.dig('choices', 0, 'message', 'content')
-
-          if content
-            prompt.say("\n🤖 #{Rainbow('AI Assistant:').bright.blue.bold}")
-
-            # Process content to add colors
-            colored_content = # Code snippets in green
-              content.gsub(/`([^`]+)`/) do
-                Rainbow(::Regexp.last_match(1)).green
-              end
-            colored_content = # Headers in yellow
-              colored_content.gsub(/^#+ (.+)$/) do
-                Rainbow(::Regexp.last_match(0)).yellow.bold
-              end
-            colored_content = # Bold text in magenta
-              colored_content.gsub(/\*\*([^*]+)\*\*/) do
-                Rainbow(::Regexp.last_match(1)).magenta.bold
-              end
-            puts "#{colored_content}\n"
-
-            if @verbose
-              puts Rainbow('Response Details:').bright.blue.bold
-              puts Rainbow("- Model: #{response['model']}").cyan
-              puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
-              puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
-              puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
-              puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
-            end
-          else
-            puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
-          end
+          # Use the shared display_response method
+          display_response(response, 'Assistant')
         rescue StandardError => e
           spinner&.error('(✗)')
           TTY::Prompt.new

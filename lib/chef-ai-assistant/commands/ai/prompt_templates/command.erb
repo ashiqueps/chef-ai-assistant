@@ -1,0 +1,42 @@
+<%# Task-specific template for the command generation %>
+
+<%= render 'base' %>
+
+## Task: Generate Commands
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) %>
+  <% if integration_context.parent_gem_name == 'chef-ecosystem' %>
+Your task is to generate the most appropriate Chef ecosystem command for the task at hand. Important: 
+- For node management, data bags, environments, roles, and Chef Server operations, ALWAYS use knife commands (not chef commands).
+- For cookbook development and local operations, use chef commands.
+- For compliance scanning, use inspec commands.
+- For habitat packaging, use hab commands.
+- For Chef Infra Client operations, use chef-client commands.
+- For test kitchen operations, use kitchen commands.
+  <% elsif strict_context %>
+Your task is to generate <%= integration_context.parent_gem_name %> commands from natural language descriptions.
+  <% else %>
+Your task is to generate Chef-related commands, with focus on <%= integration_context.parent_gem_name %>.
+  <% end %>
+<% else %>
+Your task is to generate Chef commands from natural language descriptions.
+<% end %>
+
+Provide clear, well-structured commands that solve the described problem. For each command:
+- Explain what the command does
+- Provide the exact syntax to run
+- Explain key parameters and options
+- Include examples of expected output when helpful
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) && 
+      integration_context.respond_to?(:parent_gem_version) && 
+      integration_context.parent_gem_version != 'unknown' %>
+You are using <%= integration_context.parent_gem_name %> version <%= integration_context.parent_gem_version %>.
+<% end %>
+
+For complex tasks that require multiple commands:
+1. Break down the process into steps
+2. Provide commands for each step
+3. Explain how the commands work together
+
+If a command has placeholders that need to be replaced with actual values, use <PLACEHOLDER> syntax and explain what should replace each placeholder.

@@ -24,24 +24,8 @@ module ChefAiAssistant
           @temperature = 0.7 # Slightly higher temperature for more creative generations
           @output_dir = Dir.pwd # Default to current directory
 
-          # Read the system prompt from the file first
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef ecosystem expert.'
-
-          # Add generator-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'For this generation task, please structure your response in JSON format with filename as the key and file content as the value. ' \
-                           "For directories that need to be created, use '/' at the end of the path. " \
-                           'The JSON should be a complete and well-formed object with all necessary Chef-related files to implement what the user requested. ' \
-                           "Always start your response with a brief explanation of what you're generating and how it addresses the user's request. " \
-                           'After your explanation, provide the JSON structure containing all files and their contents. ' \
-                           'Focus exclusively on Chef-related content such as cookbooks, recipes, InSpec profiles, etc. ' \
-                           'Your response should follow Chef best practices and conventions. ' \
-                           'CRITICAL: When generating Chef cookbooks or other Chef components, you must include ACTUAL FILE CONTENTS for each file, not just directories. ' \
-                           'EXAMPLES: ' \
-                           '1. WRONG (just directories): { "cookbook_name/": "", "cookbook_name/recipes/": "" } ' \
-                           "2. CORRECT (with file content): { \"cookbook_name/metadata.rb\": \"name 'cookbook_name'\nversion '0.1.0'\" } " \
-                           'Always include at minimum: metadata.rb with actual content, recipes/default.rb with actual recipe code, and any other necessary files with actual content.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'generate')
         end
 
         def run(args = [])
@@ -136,11 +120,28 @@ module ChefAiAssistant
 
           # Create messages array with system and user prompts
           messages = [
-            { role: 'system', content: @system_prompt },
-            { role: 'user', content: "I need to generate Chef-related files for: #{description}. " \
+            { role: 'system', content: @system_prompt }
+          ]
+
+          # Add integration context information if available
+          if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+            # Get the parent gem name
+            parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+
+            # Create a strong enforcement message
+            enforcement_message =
+              "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY generate #{parent_gem}-related files. " \
+              "If the user asks you to generate files related to another Chef tool that is not directly related to #{parent_gem}, " \
+              "respond with: \"I'm currently integrated with #{parent_gem} and can only generate #{parent_gem}-specific files and code. " \
+              'For generating [REQUESTED_TOOL] files, please use the `[REQUESTED_TOOL] ai generate` command instead."'
+
+            messages << { role: 'system', content: enforcement_message }
+          end
+
+          # Add the user's generation request
+          messages << { role: 'user', content: "I need to generate Chef-related files for: #{description}. " \
               'Please create all necessary Chef files and directories following best practices. ' \
               "Respond with an explanation of what you'll generate, followed by the JSON with all required files for a complete implementation.\n\n#{analysis_prompt}\n\n#{content_reminder}" }
-          ]
 
           # Send the request to the AI
           response = client.chat(nil, {

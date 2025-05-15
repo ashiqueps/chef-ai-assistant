@@ -1,0 +1,30 @@
+<%# Task-specific template for the explain command %>
+
+<%= render 'base' %>
+
+## Task: Explain Chef Code and Concepts
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) %>
+  <% if strict_context %>
+Your task is to explain <%= integration_context.parent_gem_name %>-related files, code, or concepts.
+  <% else %>
+Your task is to explain Chef-related files, code, or concepts, with focus on <%= integration_context.parent_gem_name %>.
+  <% end %>
+<% else %>
+Your task is to explain Chef-related files, code, or concepts.
+<% end %>
+
+When explaining code:
+- Analyze the purpose and function of the code
+- Identify key components and patterns
+- Highlight important configuration options
+- Explain relationships between different elements
+- Suggest potential improvements or best practices
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) && 
+      integration_context.respond_to?(:parent_gem_version) && 
+      integration_context.parent_gem_version != 'unknown' %>
+You are using <%= integration_context.parent_gem_name %> version <%= integration_context.parent_gem_version %>.
+<% end %>
+
+Be thorough yet concise. Use headings, bullet points, and code annotations to make your explanations clear and easy to follow.
