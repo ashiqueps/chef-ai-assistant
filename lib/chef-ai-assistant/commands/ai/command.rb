@@ -100,19 +100,34 @@ module ChefAiAssistant
             { role: 'system', content: @system_prompt }
           ]
 
-          # Add strong boundaries for command generation
+          # Add boundaries for command generation based on context setting
           if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
             # Get the parent gem name
             parent_gem = ChefAiAssistant.integration_context.parent_gem_name
 
-            # Create a strong enforcement message for command generation
-            enforcement_message =
-              "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY generate commands for #{parent_gem}. " \
-              "If the user asks for commands related to another Chef tool that is not directly related to #{parent_gem}, " \
-              "respond with: \"I'm currently integrated with #{parent_gem} and can only generate #{parent_gem}-specific commands. " \
-              'For commands related to [REQUESTED_TOOL], please use the `[REQUESTED_TOOL] ai command` command instead."'
+            # Check if strict context is enabled
+            strict_context = ChefAiAssistant.respond_to?(:configuration) &&
+                             ChefAiAssistant.configuration.respond_to?(:strict_context_aware) &&
+                             ChefAiAssistant.configuration.strict_context_aware
 
-            messages << { role: 'system', content: enforcement_message }
+            if strict_context
+              # Create a strong enforcement message for command generation
+              enforcement_message =
+                "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY generate commands for #{parent_gem}. " \
+                "If the user asks for commands related to another Chef tool that is not directly related to #{parent_gem}, " \
+                "respond with: \"I'm currently integrated with #{parent_gem} and can only generate #{parent_gem}-specific commands. " \
+                'For commands related to [REQUESTED_TOOL], please use the `[REQUESTED_TOOL] ai command` command instead."'
+
+              messages << { role: 'system', content: enforcement_message }
+            else
+              # Create a relaxed message that allows answering about the entire Chef ecosystem
+              relaxed_message =
+                "You are integrated with #{parent_gem}, but you can answer questions about the entire Chef ecosystem. " \
+                'When generating commands, prefer those most appropriate for the task regardless of which Chef tool they belong to. ' \
+                'For node management, use knife. For compliance, use inspec. For habitat packaging, use hab. And so on.'
+
+              messages << { role: 'system', content: relaxed_message }
+            end
           end
 
           # Add the user's command request
