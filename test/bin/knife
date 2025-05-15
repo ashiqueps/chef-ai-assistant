@@ -1,0 +1,55 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# This is a test binary to simulate integration with the Knife gem
+
+require 'bundler/setup'
+require 'chef-ai-assistant'
+require 'chef-ai-assistant/utils/cli_helper'
+
+# Create a mock of the Knife CLI class for testing integration
+module Knife
+  class CLI
+    def self.name
+      'Knife::CLI'
+    end
+  end
+end
+
+# Configure and initialize the AI assistant using the helper with strict context mode
+# This means it will only answer questions specific to Knife functionality
+ChefAiAssistant::Utils::CliHelper.configure_for_gem(Knife::CLI, 'knife', { strict_context: true })
+
+prompt = TTY::Prompt.new
+puts prompt.decorate('Knife Test Binary', :bold)
+puts 'This binary simulates how Chef AI Assistant integrates with Knife.'
+puts "Integration context: #{ChefAiAssistant.integration_context}"
+puts "Parent gem: #{ChefAiAssistant.integration_context.parent_gem_name}"
+puts "Description: #{ChefAiAssistant.integration_context.parent_gem_description}"
+
+# Check command line arguments
+if ARGV.empty?
+  puts "\n#{prompt.decorate('Usage:', :bold)} #{$PROGRAM_NAME} COMMAND [arguments]"
+  puts "\n#{prompt.decorate('Available commands:', :bold)}"
+  puts "  #{prompt.decorate('ai', :blue).ljust(17)} Knife AI Assistant commands (integrated with Chef Knife)"
+  puts "\nRun '#{prompt.decorate("#{$PROGRAM_NAME} COMMAND --help",
+                                 :cyan)}' for more information on a specific command."
+  exit 1
+end
+
+# Handle commands directly
+command = ARGV[0]
+if command == 'ai'
+  # Create an instance of the AI command
+  ai_command = ChefAiAssistant::Commands::Ai.new
+
+  # Run the AI command with the remaining arguments
+  exit_code = ai_command.run(ARGV[1..-1])
+
+  exit(exit_code || 0)
+else
+  # Simulate Knife behavior for non-AI commands
+  puts "#{prompt.decorate('Knife Test Binary:', :bold)} Would now execute standard Knife command: #{command}"
+  puts '(This is just a simulation for testing the AI assistant integration - no actual Knife commands will be executed)'
+  exit 0
+end

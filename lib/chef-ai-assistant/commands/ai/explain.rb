@@ -22,16 +22,8 @@ module ChefAiAssistant
           @verbose = false
           @temperature = 0.7
 
-          # Read the system prompt from the file
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
-
-          # Add explain-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'Your current task is to explain the purpose and functionality of Chef-related files or directories. ' \
-                           "Focus on files related to Chef's ecosystem (like cookbooks, recipes, attributes, resources, etc.). " \
-                           "For non-Chef related files, indicate they are outside of Chef's ecosystem. " \
-                           'Be concise but thorough in your explanations.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'explain')
         end
 
         def run(args = [])
@@ -117,10 +109,24 @@ module ChefAiAssistant
           spinner.auto_spin
 
           # Create messages array with system and user prompts
-          messages = [
-            { role: 'system', content: @system_prompt },
-            { role: 'user', content: query }
-          ]
+          messages = create_message_array(query)
+
+          # Replace the default enforcement message with explain-specific one if available
+          if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+            parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+
+            # Create explain-specific enforcement message
+            explain_enforcement_message =
+              "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY explain #{parent_gem}-related files. " \
+              "If the user asks you to explain files related to another Chef tool that is not directly related to #{parent_gem}, " \
+              "respond with: \"I'm currently integrated with #{parent_gem} and can only explain #{parent_gem}-specific files. " \
+              'For questions about [REQUESTED_TOOL], please use the `[REQUESTED_TOOL] ai explain` command instead."'
+
+            # Replace the second message (enforcement message) with explain-specific one
+            if messages.length >= 2 && messages[1][:role] == 'system'
+              messages[1][:content] = explain_enforcement_message
+            end
+          end
 
           # Send the request to the AI
           response = client.chat(nil, {
@@ -130,38 +136,8 @@ module ChefAiAssistant
 
           spinner.stop
 
-          # Extract and display the response
-          content = response.dig('choices', 0, 'message', 'content')
-
-          if content
-            prompt.say("\n🤖 #{Rainbow('AI Explanation:').bright.blue.bold}")
-
-            # Process content to add colors
-            colored_content = # Code snippets in green
-              content.gsub(/`([^`]+)`/) do
-                Rainbow(::Regexp.last_match(1)).green
-              end
-            colored_content = # Headers in yellow
-              colored_content.gsub(/^#+ (.+)$/) do
-                Rainbow(::Regexp.last_match(0)).yellow.bold
-              end
-            colored_content = # Bold text in magenta
-              colored_content.gsub(/\*\*([^*]+)\*\*/) do
-                Rainbow(::Regexp.last_match(1)).magenta.bold
-              end
-            puts "#{colored_content}\n"
-
-            if @verbose
-              puts Rainbow('Response Details:').bright.blue.bold
-              puts Rainbow("- Model: #{response['model']}").cyan
-              puts Rainbow("- Finish reason: #{response.dig('choices', 0, 'finish_reason')}").cyan
-              puts Rainbow("- Prompt tokens: #{response.dig('usage', 'prompt_tokens')}").cyan
-              puts Rainbow("- Completion tokens: #{response.dig('usage', 'completion_tokens')}").cyan
-              puts Rainbow("- Total tokens: #{response.dig('usage', 'total_tokens')}").cyan
-            end
-          else
-            puts Rainbow('Error: Failed to get a response from the AI assistant').red.bold
-          end
+          # Use the shared display_response method
+          display_response(response, 'Explanation')
         rescue StandardError => e
           spinner&.error('(✗)')
           TTY::Prompt.new

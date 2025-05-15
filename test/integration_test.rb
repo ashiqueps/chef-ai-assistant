@@ -19,22 +19,22 @@ def run_integration_test(num, description, cmd)
   run_command(cmd)
 end
 
-puts Rainbow("Testing Chef AI Assistant integration with different gems").bright.blue.bold
-puts ""
+puts Rainbow('Testing Chef AI Assistant integration with different gems').bright.blue.bold
+puts ''
 
 # Define test cases for gem integration tests
 gem_tests = [
   {
     description: "Testing default 'chef' integration",
-    command: 'ruby -I lib bin/chef ai --help'
+    command: 'ruby -I lib test/bin/chef ai --help'
   },
   {
     description: "Testing 'knife' integration",
-    command: 'ruby -I lib bin/knife ai --help'
+    command: 'ruby -I lib test/bin/knife ai --help'
   },
   {
     description: "Testing 'inspec' integration",
-    command: 'ruby -I lib bin/inspec ai --help'
+    command: 'ruby -I lib test/bin/inspec ai --help'
   }
 ]
 
@@ -43,17 +43,36 @@ gem_tests.each_with_index do |test, index|
   run_integration_test(index + 1, test[:description], test[:command])
 end
 
-puts Rainbow("Testing command generation with specific context").bright.blue.bold
+puts Rainbow('Testing Context Awareness Modes').bright.blue.bold
+
+# Define context awareness tests
+context_tests = [
+  {
+    description: "Testing relaxed context in 'chef' integration (should answer about InSpec)",
+    command: 'ruby -I lib test/bin/chef ai ask "what is inspec?"'
+  },
+  {
+    description: "Testing strict context in 'knife' integration (should refuse to answer about InSpec)",
+    command: 'ruby -I lib test/bin/knife ai ask "what is inspec?"'
+  }
+]
+
+# Run context awareness tests
+context_tests.each_with_index do |test, index|
+  run_integration_test(gem_tests.length + index + 1, test[:description], test[:command])
+end
+
+puts Rainbow('Testing command generation with specific context').bright.blue.bold
 
 # Define command generation tests
 command_tests = [
   {
     description: "Testing 'knife' specialized command generation",
-    command: 'ruby -I lib bin/knife ai command "list all nodes" --help'
+    command: 'ruby -I lib test/bin/knife ai command "list all nodes" --help'
   },
   {
     description: "Testing 'inspec' specialized command generation",
-    command: 'ruby -I lib bin/inspec ai command "check if port 80 is open" --help'
+    command: 'ruby -I lib test/bin/inspec ai command "check if port 80 is open" --help'
   }
 ]
 
@@ -62,4 +81,4 @@ command_tests.each_with_index do |test, index|
   run_integration_test(index + 4, test[:description], test[:command])
 end
 
-puts "\n#{Rainbow("Integration Test Complete!").bright.green.bold}"
+puts "\n#{Rainbow('Integration Test Complete!').bright.green.bold}"

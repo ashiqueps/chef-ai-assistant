@@ -1,0 +1,30 @@
+<%# Task-specific template for the generate command %>
+
+<%= render 'base' %>
+
+## Task: Generate Chef Code
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) %>
+  <% if strict_context %>
+Your task is to generate <%= integration_context.parent_gem_name %>-related files, code, or configuration.
+  <% else %>
+Your task is to generate Chef-related files, code, or configuration, with focus on <%= integration_context.parent_gem_name %>.
+  <% end %>
+<% else %>
+Your task is to generate Chef-related files, code, or configuration.
+<% end %>
+
+When generating code:
+- Create well-structured, idiomatic code that follows best practices
+- Include descriptive comments explaining key sections
+- Follow established conventions for the specific type of file
+- Consider error handling and edge cases
+- Ensure the code is as concise as possible without sacrificing clarity
+
+<% if integration_context && integration_context.respond_to?(:parent_gem_name) && 
+      integration_context.respond_to?(:parent_gem_version) && 
+      integration_context.parent_gem_version != 'unknown' %>
+You are using <%= integration_context.parent_gem_name %> version <%= integration_context.parent_gem_version %>.
+<% end %>
+
+Provide context about how the generated code works and how it should be used.

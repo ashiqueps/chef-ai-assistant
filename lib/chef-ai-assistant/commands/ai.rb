@@ -25,11 +25,13 @@ module ChefAiAssistant
       end
 
       def run(args = [])
+        # Handle global help flag
         if args.empty? || args.first == '--help' || args.first == '-h'
           show_help
           return 0
         end
 
+        # Handle global version flag
         if ['--version', '-v'].include?(args.first)
           show_version
           return 0
@@ -37,7 +39,12 @@ module ChefAiAssistant
 
         subcommand = args.first
         if @subcommands.key?(subcommand)
-          @subcommands[subcommand].run(args[1..-1])
+          # Process subcommand arguments
+          subcommand_args = args[1..-1]
+
+          # If the subcommand is followed by help or version flags,
+          # we can just call the subcommand directly as our base class should handle it
+          @subcommands[subcommand].run(subcommand_args)
         else
           puts "Unknown subcommand: #{subcommand}"
           show_help
@@ -58,12 +65,34 @@ module ChefAiAssistant
         @options.each do |option, desc|
           puts "  #{prompt.decorate(option, :blue).ljust(17)} #{desc}"
         end
-        puts "\nRun '#{prompt.decorate('chef ai SUBCOMMAND --help',
+
+        # Show integration context if available
+        if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+          parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+          parent_ver = ChefAiAssistant.integration_context.parent_gem_version
+          puts "\n#{prompt.decorate('Integration:',
+                                    :bold)} Integrated with #{prompt.decorate(parent_gem, :magenta)} v#{parent_ver}"
+        end
+
+        # Show command example with correct prefix based on integration context
+        cmd_prefix = if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+                       ChefAiAssistant.integration_context.parent_gem_name
+                     else
+                       'chef'
+                     end
+        puts "\nRun '#{prompt.decorate("#{cmd_prefix} ai SUBCOMMAND --help",
                                        :cyan)}' for more information on a specific subcommand."
       end
 
       def show_version
-        puts "Chef AI Assistant version #{ChefAiAssistant::VERSION}"
+        version_info = "Chef AI Assistant version #{ChefAiAssistant::VERSION}"
+
+        # Add integration context if available
+        if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+          version_info += " (integrated with #{ChefAiAssistant.integration_context})"
+        end
+
+        puts version_info
       end
 
       def load_subcommands
@@ -76,6 +105,7 @@ module ChefAiAssistant
         end
 
         # Register built-in subcommands
+        register_subcommand('setup', 'Set up AI Assistant credentials', ChefAiAssistant::Commands::Ai::Setup)
         register_subcommand('ask', 'Ask the AI assistant a question', ChefAiAssistant::Commands::Ai::Ask)
         register_subcommand('explain', 'Explain Chef-related files or directories',
                             ChefAiAssistant::Commands::Ai::Explain)

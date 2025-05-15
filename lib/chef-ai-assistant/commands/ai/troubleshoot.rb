@@ -23,16 +23,8 @@ module ChefAiAssistant
           @verbose = false
           @temperature = 0.4
 
-          # Read the system prompt from the file
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
-
-          # Add troubleshoot-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'Your current task is to troubleshoot and diagnose Chef-related issues. ' \
-                           'Analyze error messages, log files, or configuration files provided by the user. ' \
-                           'Provide clear step-by-step solutions when possible. ' \
-                           'Your answers should be practical, actionable, and focus on best practices for Chef.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'troubleshoot')
         end
 
         def run(args = [])
@@ -114,9 +106,26 @@ module ChefAiAssistant
 
           # Create messages array with system and user prompts
           messages = [
-            { role: 'system', content: @system_prompt },
-            { role: 'user', content: content }
+            { role: 'system', content: @system_prompt }
           ]
+
+          # Add integration context information if available
+          if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+            # Get the parent gem name
+            parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+
+            # Create a strong enforcement message
+            enforcement_message =
+              "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY troubleshoot #{parent_gem}-related issues. " \
+              "If the user asks you to troubleshoot issues related to another Chef tool that is not directly related to #{parent_gem}, " \
+              "respond with: \"I'm currently integrated with #{parent_gem} and can only troubleshoot #{parent_gem}-specific issues. " \
+              'For troubleshooting [REQUESTED_TOOL] issues, please use the `[REQUESTED_TOOL] ai troubleshoot` command instead."'
+
+            messages << { role: 'system', content: enforcement_message }
+          end
+
+          # Add the user's troubleshooting request
+          messages << { role: 'user', content: content }
 
           # Send the request to the AI
           response = client.chat(nil, {

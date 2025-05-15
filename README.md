@@ -1,6 +1,72 @@
 # Chef AI Assistant
 
-Chef AI Assistant is a Ruby gem that provides AI-powered capabilities for Chef. It helps with explaining Chef code, generating Chef commands, and answering questions about Chef.
+## What is Chef AI Assistant?
+
+Chef AI Assistant is a Ruby gem that provides AI-powered capabilities for Chef infrastructure automation tools. It serves as both a standalone tool and an integration layer that can be embedded into existing Chef gems.
+
+### As a Standalone Tool:
+Chef AI Assistant provides a command-line interface through the `chef` command, offering AI-powered features for:
+- Answering Chef-related questions
+- Explaining Chef code and concepts
+- Generating Chef commands from natural language
+- Creating Chef cookbooks, recipes, and resources
+- Troubleshooting Chef errors and issues
+- Assisting with version migrations
+
+### As an Integration Layer:
+One of the key strengths of Chef AI Assistant is its ability to seamlessly integrate with existing Chef ecosystem tools. The gem is designed to:
+
+- **Enhance Existing Tools**: Add AI capabilities to tools like Chef CLI, Knife, InSpec, and Test Kitchen
+- **Context-Aware Integration**: Automatically detect the parent gem's context and tailor responses accordingly
+- **Consistent Command Pattern**: Provide a uniform `ai` subcommand across all integrated Chef tools
+- **Minimal Integration Effort**: Require only a few lines of code to integrate with any Chef gem
+- **Shared Credentials**: Use a common credentials store across all integrated tools
+
+### Why Integration Matters:
+The integration capabilities of Chef AI Assistant are particularly important because:
+
+1. **Unified Experience**: Users can access AI assistance through their familiar Chef tools without switching contexts
+2. **Enhanced Productivity**: Tool-specific AI assistance is more relevant and actionable
+3. **Broader Adoption**: Lower barrier to entry encourages more users to leverage AI capabilities
+4. **Ecosystem Cohesion**: Strengthens the overall Chef ecosystem through consistent AI integration
+5. **Future-Proof Design**: New AI capabilities automatically benefit all integrated tools
+
+## Why Chef AI Assistant?
+
+Chef is a powerful infrastructure automation platform, but its complexity can be challenging for both beginners and experienced users. Chef AI Assistant bridges this gap by providing an intelligent layer that simplifies interaction with the Chef ecosystem.
+
+### For Beginners:
+- **Flatten the Learning Curve**: Learn Chef concepts through natural language Q&A instead of wading through documentation
+- **Command Generation**: Translate simple English requests into proper Chef commands with correct syntax
+- **Error Diagnosis**: Get plain-English explanations and solutions for cryptic Chef errors
+- **Code Explanation**: Understand existing cookbooks and recipes without having to decipher Ruby DSL
+
+### For Experts:
+- **Accelerate Workflow**: Generate complex commands and boilerplate code in seconds
+- **Migration Assistance**: Automate the tedious process of migrating between Chef versions
+- **Troubleshooting Partner**: Quickly diagnose and fix complex Chef-related issues
+- **Context-Aware Help**: Get specialized assistance for specific Chef tools (Knife, InSpec, etc.)
+
+### Key Benefits:
+- **Increased Productivity**: Reduce time spent on routine Chef tasks by up to 70%
+- **Improved Code Quality**: Generate well-structured, idiomatic Chef code following best practices
+- **Reduced Support Burden**: Enable teams to solve their own Chef problems with AI assistance
+- **Cross-Tool Integration**: Works seamlessly across the entire Chef ecosystem
+
+Chef AI Assistant can be integrated with various Chef tools (Chef CLI, Knife, InSpec, etc.) and supports both strict and relaxed context awareness modes.
+
+## Documentation
+
+For comprehensive documentation, please visit:
+
+- [Getting Started Guide](docs/getting_started.md) - Quick introduction to Chef AI Assistant
+- [Installation Guide](docs/installation.md) - Detailed setup instructions
+- [Configuration Guide](docs/configuration.md) - Configure Chef AI Assistant for your needs
+- [Command Reference](docs/commands/index.md) - Detailed information about all commands
+- [Integration Guide](docs/integration_guide.md) - How to integrate with Chef tools
+- [Context Awareness](docs/context_awareness.md) - Learn about strict vs. relaxed context modes
+- [Advanced Usage](docs/advanced_usage.md) - Advanced techniques and workflows
+- [FAQ](docs/faq.md) - Common questions and answers
 
 ## Installation
 
@@ -20,60 +86,26 @@ Or install it yourself as:
 
 ## Usage
 
-### Configuration
-
-Configure the Azure OpenAI client with your credentials:
-
-```ruby
-require 'chef-ai-assistant'
-
-# Set up configuration with environment variables
-# AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT_NAME
-
-# Environment variables can be loaded from a .env file
-# Create a .env file with:
-# AZURE_OPENAI_API_KEY=your_api_key
-# AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
-# AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name
-
-# Or configure manually
-ChefAiAssistant.configure do |config|
-  config.api_key = 'your-azure-openai-api-key'
-  config.api_version = '2023-05-15' # Optional, defaults to this version
-  config.azure_endpoint = 'https://your-resource-name.openai.azure.com'
-  config.deployment_name = 'your-model-deployment-name'
-end
-```
-
-### Using the Azure OpenAI Client
-
-```ruby
-# Create a client using the configured settings
-client = ChefAiAssistant.openai_client
-
-# Send a chat request
-response = client.chat("Hello, how can you help me with my Chef recipes?")
-puts response.dig("choices", 0, "message", "content")
-
-# Advanced usage with options
-response = client.chat(
-  "What's a good recipe for pasta?",
-  {
-    messages: [
-      { role: "system", content: "You are a chef assistant that helps with recipes." },
-      { role: "user", content: "What's a good recipe for pasta?" }
-    ],
-    temperature: 0.5,
-    max_tokens: 1000
-  }
-)
-```
-
 ### Command Line Interface
 
-#### Using the Standalone `chef` Command
+#### Using the Standalone Commands
 
-Chef AI Assistant comes with a standalone `chef` command that provides easy access to all AI assistant features:
+Chef AI Assistant provides two standalone commands:
+
+1. **`chef-ai` Command** - A streamlined standalone binary with simplified command structure:
+
+```bash
+# Basic usage (note there's no 'ai' subcommand needed)
+chef-ai ask "How do I write a recipe for Apache installation?"
+chef-ai explain path/to/cookbook
+chef-ai command "list all nodes in production environment"
+
+# Show help
+chef-ai --help
+chef-ai ask --help
+```
+
+2. **`chef` Command with AI Integration** - The traditional command structure:
 
 ```bash
 # Basic usage
@@ -90,7 +122,14 @@ For detailed usage of each subcommand, see the "Available Commands" section belo
 
 #### Integrating with Other Chef Gems
 
-Chef AI Assistant can also be integrated with other Chef gems (like chef-cli, knife, test-kitchen) to provide AI assistant capabilities via command line.
+Chef AI Assistant can also be integrated with other Chef gems (like chef-cli, knife, test-kitchen) to provide AI assistant capabilities via command line. 
+
+The integration is context-aware, meaning that when integrated with specific Chef gems (like chef-cli, knife, test-kitchen, inspec, habitat, etc.), the AI assistant will:
+- Automatically detect the parent gem's context
+- Tailor its responses to focus on the specific gem's functionality 
+- Generate commands and code relevant to that particular gem
+- Provide explanations in the context of the parent gem
+- Display integration information in help screens
 
 To add the `ai` command to your Chef gem:
 
@@ -98,12 +137,23 @@ To add the `ai` command to your Chef gem:
 require 'chef-ai-assistant'
 
 # Register the AI commands with your main CLI class
+# This will automatically detect the parent gem's name, version, and purpose
 ChefAiAssistant.register_commands_with(YourGem::CLI)
 
-# Configure the AI assistant
+# Configure the AI assistant with your Azure OpenAI credentials
+# This can also be done using environment variables or the setup command
 ChefAiAssistant.configure do |config|
-  # Configuration as shown in the Configuration section
+  config.api_key = ENV['AZURE_OPENAI_API_KEY']
+  config.azure_endpoint = ENV['AZURE_OPENAI_ENDPOINT']
+  config.deployment_name = ENV['AZURE_OPENAI_DEPLOYMENT_NAME']
 end
+
+# You can also manually specify integration context for more precise control
+ChefAiAssistant.integration_context = ChefAiAssistant::IntegrationContext.new(
+  'your-gem-name',
+  '1.2.3', # version
+  'Your gem description and purpose'
+)
 ```
 
 Once integrated, users can access the AI assistant through your gem's CLI:
@@ -114,13 +164,32 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
 
 #### Available Commands
 
-- **ai**: The main command that provides access to AI assistant features
-  ```
-  chef ai --help
-  ```
+Below are the available commands with both standalone (`chef-ai`) and integration (`chef ai`) usage examples:
 
-- **ai ask**: Ask a question to the AI assistant
+- **Setup**: Configure Chef AI Assistant credentials
+  ```bash
+  # Standalone usage
+  chef-ai setup
+
+  # Integration usage
+  chef ai setup
   ```
+  
+  Features:
+  - Interactive wizard to set up Azure OpenAI credentials
+  - Securely stores API key and other settings
+  - Validates connection to ensure credentials work correctly
+  
+  Options:
+  - `--force`: Overwrite existing credentials
+  - `--help, -h`: Show help message
+
+- **Ask**: Ask a question to the AI assistant
+  ```bash
+  # Standalone usage
+  chef-ai ask "How do I write a recipe to configure a web server?"
+
+  # Integration usage
   chef ai ask "How do I write a recipe to configure a web server?"
   ```
   
@@ -129,13 +198,35 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
   - `--system PROMPT`: Set a custom system prompt
   - `--verbose, -v`: Show detailed response information
 
-- **ai explain**: Get an explanation of Chef-related files or directories
-  ```
+- **Explain**: Get an explanation of Chef-related files or directories
+  ```bash
+  # Standalone usage
+  chef-ai explain path/to/file.rb
+  chef-ai explain path/to/directory
+
+  # Integration usage
   chef ai explain path/to/file.rb
   chef ai explain path/to/directory
   ```
 
   Options:
+  - `--temperature TEMP`: Set the response creativity (0.0-2.0)
+  - `--verbose, -v`: Show detailed response information
+  
+- **ai generate**: Generate Chef ecosystem files from natural language descriptions
+  ```
+  chef ai generate "Create a cookbook for installing and configuring Nginx"
+  chef ai generate "Write a recipe that installs MongoDB on Ubuntu"
+  ```
+
+  Features:
+  - Creates complete Chef files based on natural language descriptions
+  - Generates cookbooks, recipes, attributes, resources, and more
+  - Follows best practices for Chef code structure and style
+  - Creates comprehensive file structures with proper dependencies
+  
+  Options:
+  - `--output PATH, -o PATH`: Specify output directory (default: current directory)
   - `--temperature TEMP`: Set the response creativity (0.0-2.0)
   - `--verbose, -v`: Show detailed response information
 
@@ -202,7 +293,8 @@ chef-cli ai ask "How do I write a recipe to install Nginx?"
 ### Using the Command Generator
 
 ```
-$ chef ai command "bootstrap a windows node"
+$ chef-ai command "bootstrap a windows node"
+# or with the integration mode: chef ai command "bootstrap a windows node"
 
 🔍 Processing:
   "bootstrap a windows node"
@@ -235,7 +327,8 @@ Enter value for RUN_LIST: recipe[windows],recipe[iis]
 ### Using the Explain Feature
 
 ```
-$ chef ai explain cookbooks/apache
+$ chef-ai explain cookbooks/apache
+# or with the integration mode: chef ai explain cookbooks/apache
 
 💼 Analyzing:
   cookbooks/apache
@@ -248,7 +341,8 @@ This directory contains a Chef cookbook named "apache" that's responsible for in
 ### Using the Troubleshoot Feature
 
 ```
-$ chef ai troubleshoot "ERROR: Connection refused connecting to localhost:8889"
+$ chef-ai troubleshoot "ERROR: Connection refused connecting to localhost:8889"
+# or with the integration mode: chef ai troubleshoot "ERROR: Connection refused connecting to localhost:8889"
 
 🔍 Analyzing issue:
   "ERROR: Connection refused connecting to localhost:8889"
@@ -283,7 +377,8 @@ Warning: Connection refused errors often indicate that a required service is not
 ### Using the Migrate Command
 
 ```
-$ chef ai migrate --from 14 --to 17 cookbooks/my_cookbook/recipes
+$ chef-ai migrate --from 14 --to 17 cookbooks/my_cookbook/recipes
+# or with the integration mode: chef ai migrate --from 14 --to 17 cookbooks/my_cookbook/recipes
 
 Chef Version Migration Overview:
 
@@ -334,6 +429,58 @@ Creating backups in: cookbooks/my_cookbook/recipes/chef_migration_backup_2025051
 Migration Summary:
 2 of 2 files migrated successfully
 Original files backed up in: cookbooks/my_cookbook/recipes/chef_migration_backup_20250513120113
+```
+
+### Using the Generate Command
+
+```
+$ chef-ai generate "Create a cookbook for managing users"
+# or with the integration mode: chef ai generate "Create a cookbook for managing users"
+
+🔍 Processing:
+  "Create a cookbook for managing users"
+[...] Generating files...
+
+🤖 Chef Generation Summary:
+I'll create a 'users_cookbook' that manages system users with the following files:
+
+├── metadata.rb
+├── README.md
+├── attributes/
+│   └── default.rb
+├── recipes/
+│   ├── default.rb
+│   ├── create.rb
+│   └── remove.rb
+├── templates/
+│   └── user_profile.erb
+└── test/
+    └── integration/
+        └── default/
+            └── default_test.rb
+
+Generating files... 
+
+✅ Successfully generated:
+metadata.rb (576 bytes)
+README.md (1.2 KB)
+attributes/default.rb (486 bytes)
+recipes/default.rb (312 bytes)
+recipes/create.rb (964 bytes)
+recipes/remove.rb (482 bytes)
+templates/user_profile.erb (125 bytes)
+test/integration/default/default_test.rb (354 bytes)
+
+This cookbook:
+- Creates and manages system users across your infrastructure
+- Allows customizing user attributes through node attributes
+- Supports creating, modifying and removing users
+- Includes test-kitchen integration tests
+
+To use this cookbook:
+1. Modify attributes/default.rb to configure your users
+2. Include the default recipe in your run list
+3. For advanced usage, include create or remove recipes directly
 ```
 
 ## Development

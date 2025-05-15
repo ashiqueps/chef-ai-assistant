@@ -1,0 +1,99 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'chef-ai-assistant'
+require 'tty-spinner'
+require 'tty-prompt'
+require 'rainbow'
+
+# This binary is a wrapper around the ChefAiAssistant::Commands::Ai class,
+# but modified to directly expose subcommands without the "ai" prefix.
+# i.e. "chef-ai ask" instead of "chef-ai ai ask"
+
+begin
+  # Create an instance of the AI command class
+  ai_command = ChefAiAssistant::Commands::Ai.new
+
+  # Handle global flags
+  if ARGV.empty? || ARGV[0] == '--help' || ARGV[0] == '-h'
+    # Customize banner and help for the chef-ai binary
+    puts "Usage: chef-ai SUBCOMMAND [options]"
+    puts ""
+    puts Rainbow("Available subcommands:").bright.bold
+    ai_command.subcommands.each do |name, cmd|
+      puts "  #{Rainbow(name).bright.blue.ljust(12)} #{cmd.description}"
+    end
+    puts ""
+    puts Rainbow("Options:").bright.bold
+    puts "  #{Rainbow('--help').bright.blue.ljust(12)} Show this message"
+    puts "  #{Rainbow('--version').bright.blue.ljust(12)} Show Chef AI Assistant version"
+    puts ""
+    puts "Run 'chef-ai SUBCOMMAND --help' for more information on a specific subcommand."
+    exit 0
+  elsif ARGV[0] == '--version' || ARGV[0] == '-v'
+    puts "Chef AI Assistant #{ChefAiAssistant::VERSION}"
+    exit 0
+  end
+rescue StandardError => e
+  puts Rainbow("Error initializing chef-ai: #{e.message}").red
+  puts e.backtrace.join("\n") if ENV['DEBUG']
+  exit 1
+end
+
+begin
+  # Extract the subcommand and args
+  subcommand = ARGV[0]
+  subcommand_args = ARGV[1..-1] || []
+
+  # Check if the subcommand exists
+  if !subcommand || !ai_command.subcommands.key?(subcommand)
+    if subcommand
+      puts Rainbow("Unknown subcommand: #{subcommand}").red
+      puts "Run 'chef-ai --help' to see available subcommands."
+    else
+      puts "No subcommand provided. Run 'chef-ai --help' to see available subcommands."
+    end
+    exit 1
+  end
+
+  # Handle subcommand help - this requires special handling to maintain UX 
+  if subcommand_args.include?('--help') || subcommand_args.include?('-h')
+    prompt = TTY::Prompt.new
+    
+    # Create custom help output for the subcommand
+    banner = ai_command.subcommands[subcommand].banner.gsub(/chef ai #{subcommand}/, "chef-ai #{subcommand}")
+    desc = ai_command.subcommands[subcommand].description
+    
+    puts banner
+    puts
+    puts desc
+    puts
+    
+    # Print options with formatting
+    puts Rainbow("Options:").bright.bold
+    ai_command.subcommands[subcommand].options.each do |option, description|
+      puts "  #{Rainbow(option).bright.blue.ljust(20)} #{description}"
+    end
+    
+    exit 0
+  end
+
+  # Skip credential check for setup command
+  unless ChefAiAssistant::CredentialsManager.credentials_exist? || subcommand == 'setup'
+    prompt = TTY::Prompt.new
+    prompt.error('AI Assistant credentials not configured!')
+    puts "Please run 'chef-ai setup' to configure your Azure OpenAI credentials."
+    exit 1
+  end
+
+  # For chef-ai binary, we transform the command structure
+  # Instead of "chef-ai ask ...", we use "chef ai ask ..."
+  modified_args = ['ai', subcommand] + subcommand_args
+  exit_code = ai_command.run(modified_args)
+  exit(exit_code || 0)
+rescue StandardError => e
+  puts Rainbow("Error: #{e.message}").red
+  puts e.backtrace.join("\n") if ENV['DEBUG']
+  exit 1
+end

@@ -117,19 +117,8 @@ module ChefAiAssistant
           @output_dir = nil
           @path = Dir.pwd # Default to current directory
 
-          # Read the system prompt from the file
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
-
-          # Add migrate-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'Your current task is to help users migrate between different versions of Chef, handling syntax changes, deprecated features, and new patterns. ' \
-                           'Focus on accurately identifying and addressing compatibility issues while preserving the original functionality. ' \
-                           'Detect problems like deprecated resources, attributes, methods, or syntaxes and recommend appropriate updates. ' \
-                           'Be thorough in your analysis but conservative with changes, ensuring backward compatibility whenever possible. ' \
-                           "For each issue found, start a new line with 'ISSUE:', 'WARNING:', or 'DEPRECATED:' to clearly mark the problem. " \
-                           'Always provide the complete updated code in a Ruby code block using ```ruby and ``` markers. ' \
-                           'If no changes are needed to migrate the file, explicitly state that and include the original code in a code block marked with ```ruby.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'migrate')
         end
 
         def run(args = [])
@@ -245,10 +234,29 @@ module ChefAiAssistant
 
             # Send the file content to the AI for analysis
             messages = [
-              { role: 'system', content: @system_prompt },
-              { role: 'user',
-                content: "Please analyze the following Chef file for migration from Chef #{@source_version} to Chef #{@target_version}. #{@scan_only ? 'Only identify issues.' : 'Provide updated code to fix issues.'}\n\n```ruby\n#{file_content}\n```" }
+              { role: 'system', content: @system_prompt }
             ]
+
+            # Add integration context information if available
+            if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+              # Get the parent gem name
+              parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+
+              # Create a strong enforcement message
+              enforcement_message =
+                "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY help migrate #{parent_gem}-related files. " \
+                "If the user asks you to migrate files related to another Chef tool that is not directly related to #{parent_gem}, " \
+                "respond with: \"I'm currently integrated with #{parent_gem} and can only assist with #{parent_gem}-specific migrations. " \
+                'For migrating [REQUESTED_TOOL] files, please use the `[REQUESTED_TOOL] ai migrate` command instead."'
+
+              messages << { role: 'system', content: enforcement_message }
+            end
+
+            # Add the user's migration request
+            messages << {
+              role: 'user',
+              content: "Please analyze the following Chef file for migration from Chef #{@source_version} to Chef #{@target_version}. #{@scan_only ? 'Only identify issues.' : 'Provide updated code to fix issues.'}\n\n```ruby\n#{file_content}\n```"
+            }
 
             response = client.chat(nil, {
                                      messages: messages,

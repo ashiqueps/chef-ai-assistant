@@ -21,21 +21,19 @@ module ChefAiAssistant
           @verbose = false
           @temperature = 0.3 # Lower temperature for more deterministic command generation
 
-          # Read the system prompt from the file
-          system_prompt_path = File.join(File.dirname(__FILE__), 'system_prompt.txt')
-          base_system_prompt = File.exist?(system_prompt_path) ? File.read(system_prompt_path) : 'You are a Chef expert AI assistant.'
-
-          # Add command-specific instructions
-          @system_prompt = base_system_prompt + "\n\n" \
-                           'Your current task is to translate natural language descriptions into proper Chef command-line commands ' \
-                           '(like knife, chef, inspec, etc.). Be precise and provide only the relevant commands. ' \
-                           'Include brief explanations of what each command does and any important parameters. ' \
-                           'You may ask clarifying questions if essential information is missing.'
+          # Load the system prompt using the template renderer
+          load_system_prompt(nil, 'command')
         end
 
         def run(args = [])
           if args.empty? || args.include?('--help') || args.include?('-h')
             help
+            return 0
+          end
+
+          # Handle version flag
+          if args.include?('--version') || args.include?('-v')
+            puts "Chef AI Assistant version #{ChefAiAssistant::VERSION}"
             return 0
           end
 
@@ -99,9 +97,26 @@ module ChefAiAssistant
 
           # Create messages array with system and user prompts
           messages = [
-            { role: 'system', content: @system_prompt },
-            { role: 'user', content: "I need the Chef command to: #{description}" }
+            { role: 'system', content: @system_prompt }
           ]
+
+          # Add strong boundaries for command generation
+          if ChefAiAssistant.respond_to?(:integration_context) && ChefAiAssistant.integration_context
+            # Get the parent gem name
+            parent_gem = ChefAiAssistant.integration_context.parent_gem_name
+
+            # Create a strong enforcement message for command generation
+            enforcement_message =
+              "CRITICAL INSTRUCTION: You are integrated with #{parent_gem} and must ONLY generate commands for #{parent_gem}. " \
+              "If the user asks for commands related to another Chef tool that is not directly related to #{parent_gem}, " \
+              "respond with: \"I'm currently integrated with #{parent_gem} and can only generate #{parent_gem}-specific commands. " \
+              'For commands related to [REQUESTED_TOOL], please use the `[REQUESTED_TOOL] ai command` command instead."'
+
+            messages << { role: 'system', content: enforcement_message }
+          end
+
+          # Add the user's command request
+          messages << { role: 'user', content: "I need the Chef command to: #{description}" }
 
           # Send the request to the AI
           response = client.chat(nil, {

@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# This is a test binary to simulate integration with the InSpec gem
+
+require 'bundler/setup'
+require 'chef-ai-assistant'
+require 'chef-ai-assistant/utils/cli_helper'
+
+# Create a mock of the InSpec CLI class for testing integration
+module InSpec
+  class CLI
+    def self.name
+      'InSpec::CLI'
+    end
+  end
+end
+
+# Configure and initialize the AI assistant using the helper
+ChefAiAssistant::Utils::CliHelper.configure_for_gem(InSpec::CLI, 'inspec')
+
+prompt = TTY::Prompt.new
+puts prompt.decorate('InSpec Test Binary', :bold)
+puts 'This binary simulates how Chef AI Assistant integrates with InSpec.'
+puts "Integration context: #{ChefAiAssistant.integration_context}"
+puts "Parent gem: #{ChefAiAssistant.integration_context.parent_gem_name}"
+puts "Description: #{ChefAiAssistant.integration_context.parent_gem_description}"
+
+# Check command line arguments
+if ARGV.empty?
+  puts "\n#{prompt.decorate('Usage:', :bold)} #{$PROGRAM_NAME} COMMAND [arguments]"
+  puts "\n#{prompt.decorate('Available commands:', :bold)}"
+  puts "  #{prompt.decorate('ai', :blue).ljust(17)} InSpec AI Assistant commands (integrated with Chef InSpec)"
+  puts "\nRun '#{prompt.decorate("#{$PROGRAM_NAME} COMMAND --help",
+                                 :cyan)}' for more information on a specific command."
+  exit 1
+end
+
+# Handle commands directly
+command = ARGV[0]
+if command == 'ai'
+  # Create an instance of the AI command
+  ai_command = ChefAiAssistant::Commands::Ai.new
+
+  # Run the AI command with the remaining arguments
+  exit_code = ai_command.run(ARGV[1..-1])
+
+  exit(exit_code || 0)
+else
+  # Simulate InSpec behavior for non-AI commands
+  puts "#{prompt.decorate('InSpec Test Binary:', :bold)} Would now execute standard InSpec command: #{command}"
+  puts '(This is just a simulation for testing the AI assistant integration - no actual InSpec commands will be executed)'
+  exit 0
+end
