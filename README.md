@@ -140,12 +140,10 @@ require 'chef-ai-assistant'
 # This will automatically detect the parent gem's name, version, and purpose
 ChefAiAssistant.register_commands_with(YourGem::CLI)
 
-# Configure the AI assistant with your Azure OpenAI credentials
-# This can also be done using environment variables or the setup command
+# Configure any optional settings (credentials are handled by the setup command)
 ChefAiAssistant.configure do |config|
-  config.api_key = ENV['AZURE_OPENAI_API_KEY']
-  config.azure_endpoint = ENV['AZURE_OPENAI_ENDPOINT']
-  config.deployment_name = ENV['AZURE_OPENAI_DEPLOYMENT_NAME']
+  # Optional: Control whether responses are limited to the current tool's context
+  config.strict_context_aware = true # Set to false for relaxed context mode
 end
 
 # You can also manually specify integration context for more precise control
