@@ -34,7 +34,6 @@ Gem::Specification.new do |spec|
 
   # Runtime dependencies
   spec.add_dependency 'rainbow', '~> 3.0'
-  spec.add_dependency 'ruby-openai', '~> 5.0'
   spec.add_dependency 'tty-prompt', '~> 0.23'
   spec.add_dependency 'tty-spinner', '~> 0.9'
 end
